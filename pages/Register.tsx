@@ -1,20 +1,23 @@
 
 import React, { useState } from 'react';
 import { 
-  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
   signInWithPopup, 
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  updateProfile
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
 import { useNavigate, Link } from 'react-router-dom';
+import { createUserProfile } from '../services/firebaseService';
 
-const Auth: React.FC = () => {
+const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
       alert("Firebase is not configured. Please set your environment variables.");
@@ -22,19 +25,18 @@ const Auth: React.FC = () => {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: fullName });
+      // Create Firestore profile
+      await createUserProfile(userCredential.user.uid, {
+        name: fullName,
+        email: email,
+        role: 'user'
+      });
       navigate('/');
     } catch (error: any) {
-      console.error("Auth error:", error);
-      let message = error.message || "Authentication failed";
-      
-      if (error.code === 'auth/invalid-credential') {
-        message = "Invalid email or password. Please check your credentials or ensure Email/Password auth is enabled in Firebase.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        message = "This sign-in method is not enabled in your Firebase console.";
-      }
-      
-      alert(message);
+      console.error("Registration error:", error);
+      alert(error.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -52,11 +54,9 @@ const Auth: React.FC = () => {
     } catch (error: any) {
       console.error("Google Auth error:", error);
       let message = error.message || "Google sign in failed";
-      
       if (error.code === 'auth/unauthorized-domain') {
-        message = "This domain is not authorized in your Firebase console. Please add the current URL to 'Authorized Domains' in Firebase Authentication settings.";
+        message = "This domain is not authorized in your Firebase console.";
       }
-      
       alert(message);
     }
   };
@@ -68,11 +68,22 @@ const Auth: React.FC = () => {
           <div className="bg-purple-600 w-16 h-16 rounded-[1.25rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-purple-100">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.708a2 2 0 011.965 2.388l-1.01 4.542a2 2 0 01-1.965 1.57H4.302a2 2 0 01-1.965-1.57l-1.01-4.542A2 2 0 013.292 10H8m6 0v2a2 2 0 11-4 0v-2m4 0V5a2 2 0 10-4 0v5" /></svg>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Welcome Back!</h1>
-          <p className="text-slate-500 font-medium">Ready to help more animals at Vic's?</p>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Create Account</h1>
+          <p className="text-slate-500 font-medium">Join our compassionate community</p>
         </div>
 
-        <form className="space-y-6" onSubmit={handleAuth}>
+        <form className="space-y-6" onSubmit={handleRegister}>
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
+            <input 
+              required
+              type="text" 
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium" 
+              placeholder="Jane Smith"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Email</label>
             <input 
@@ -85,14 +96,10 @@ const Auth: React.FC = () => {
             />
           </div>
           <div>
-            <div className="flex justify-between mb-2">
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Password</label>
-              <button type="button" className="text-xs font-black text-purple-700 hover:underline tracking-widest uppercase">Forgot?</button>
-            </div>
+            <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Password</label>
             <input 
               required
               type="password" 
-              title="password" 
               className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium" 
               placeholder="••••••••"
               value={password}
@@ -104,7 +111,7 @@ const Auth: React.FC = () => {
             disabled={loading}
             className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {loading ? 'Processing...' : 'Sign In'}
+            {loading ? 'Processing...' : 'Sign Up'}
           </button>
         </form>
 
@@ -124,10 +131,10 @@ const Auth: React.FC = () => {
 
         <div className="mt-10 text-center">
           <Link 
-            to="/register"
+            to="/auth"
             className="text-sm font-bold text-slate-500 hover:text-purple-700 transition-colors uppercase tracking-widest"
           >
-            Don't have an account? Sign up
+            Already have an account? Sign in
           </Link>
         </div>
       </div>
@@ -135,4 +142,4 @@ const Auth: React.FC = () => {
   );
 };
 
-export default Auth;
+export default Register;

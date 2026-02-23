@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
-import { MOCK_USERS } from '../constants.tsx';
+import React, { useState, useEffect } from 'react';
 import { User, Animal, AnimalType, AdoptionApplication } from '../types.ts';
+import { updateApplicationStatus, addAnimal, updateAnimal, fetchUsers, updateUserRole as updateUserRoleService } from '../services/firebaseService';
 
 interface AdminDashboardProps {
   animals: Animal[];
@@ -11,11 +11,21 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, applications, setApplications }) => {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications'>('users');
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAnimalId, setEditingAnimalId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<AdoptionApplication | null>(null);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      const data = await fetchUsers();
+      setUsers(data);
+      setLoadingUsers(false);
+    };
+    loadUsers();
+  }, []);
   
   // Form State
   const [formData, setFormData] = useState<Partial<Animal>>({
@@ -30,14 +40,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
 
   const pendingApps = applications.filter(app => app.status === 'pending');
 
-  const updateUserRole = (userId: string, newRole: User['role']) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+  const updateUserRole = async (userId: string, newRole: User['role']) => {
+    try {
+      await updateUserRoleService(userId, newRole);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      alert("Failed to update user role.");
+    }
   };
 
-  const handleApplication = (id: string, status: 'approved' | 'rejected') => {
-    setApplications(prev => prev.map(app => app.id === id ? { ...app, status } : app));
-    if (selectedApp?.id === id) {
-      setSelectedApp(prev => prev ? { ...prev, status } : null);
+  const handleApplication = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      await updateApplicationStatus(id, status);
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+      if (selectedApp?.id === id) {
+        setSelectedApp(prev => prev ? { ...prev, status } : null);
+      }
+    } catch (error) {
+      console.error("Error updating application status:", error);
+      alert("Failed to update application status.");
     }
   };
 
@@ -69,34 +91,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     setFormData({ name: '', type: AnimalType.DOG, breed: '', age: '', gender: 'Female', description: '', tags: [] });
   };
 
-  const handleSubmitAnimal = (e: React.FormEvent) => {
+  const handleSubmitAnimal = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingAnimalId) {
-      setAnimals(prev => prev.map(a => a.id === editingAnimalId ? { 
-        ...a, 
-        ...formData as Animal,
-        // Regenerate image only if type changed, or keep existing
-        image: formData.type !== a.type ? `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${Math.floor(Math.random() * 1000)}` : a.image
-      } : a));
-    } else {
-      const lockSeed = Math.floor(Math.random() * 1000);
-      const animalToAdd: Animal = {
-        ...formData as Animal,
-        id: Math.random().toString(36).substr(2, 9),
-        image: `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${lockSeed}`,
-        tags: ['New Arrival']
-      };
-      setAnimals(prev => [animalToAdd, ...prev]);
+    try {
+      if (editingAnimalId) {
+        const updatedData = { 
+          ...formData as Animal,
+          image: formData.type !== animals.find(a => a.id === editingAnimalId)?.type ? `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${Math.floor(Math.random() * 1000)}` : animals.find(a => a.id === editingAnimalId)?.image
+        };
+        await updateAnimal(editingAnimalId, updatedData);
+        setAnimals(prev => prev.map(a => a.id === editingAnimalId ? { ...a, ...updatedData } : a));
+      } else {
+        const lockSeed = Math.floor(Math.random() * 1000);
+        const animalData: Omit<Animal, 'id'> = {
+          ...formData as Animal,
+          image: `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${lockSeed}`,
+          tags: ['New Arrival']
+        };
+        const newId = await addAnimal(animalData);
+        setAnimals(prev => [{ ...animalData, id: newId }, ...prev]);
+      }
+      resetForm();
+    } catch (error) {
+      console.error("Error saving animal:", error);
+      alert("Failed to save animal profile.");
     }
-    
-    resetForm();
   };
 
   const getRoleBadgeColor = (role: User['role']) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'volunteer': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'staff': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
@@ -115,7 +141,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         {[
           { label: 'Total Members', value: users.length, icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', color: 'blue' },
-          { label: 'Active Volunteers', value: users.filter(u => u.role === 'volunteer').length, icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'emerald' },
+          { label: 'Staff Members', value: users.filter(u => u.role === 'staff').length, icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'emerald' },
           { label: 'Animals Hosted', value: animals.length, icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', color: 'purple' },
           { 
             label: 'Pending Apps', 
@@ -143,7 +169,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
         <button 
           onClick={() => setActiveTab('volunteers')}
           className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'volunteers' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-        >Volunteers</button>
+        >Staff</button>
         <button 
           onClick={() => setActiveTab('inventory')}
           className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'inventory' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
@@ -166,37 +192,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map(user => (
-                  <tr key={user.id} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400 shadow-inner">
-                          {user.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-slate-900 font-bold">{user.name}</div>
-                          <div className="text-slate-500 text-xs font-medium">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getRoleBadgeColor(user.role)}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <select 
-                        value={user.role}
-                        onChange={(e) => updateUserRole(user.id, e.target.value as any)}
-                        className="text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 ring-purple-100 focus:outline-none transition-all"
-                      >
-                        <option value="user">User</option>
-                        <option value="volunteer">Volunteer</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </td>
+                {loadingUsers ? (
+                  <tr>
+                    <td colSpan={3} className="px-8 py-12 text-center text-slate-400 font-bold uppercase tracking-widest animate-pulse">Loading users...</td>
                   </tr>
-                ))}
+                ) : users.length > 0 ? (
+                  users.map(user => (
+                    <tr key={user.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400 shadow-inner">
+                            {user.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-slate-900 font-bold">{user.name}</div>
+                            <div className="text-slate-500 text-xs font-medium">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getRoleBadgeColor(user.role)}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <select 
+                          value={user.role}
+                          onChange={(e) => updateUserRole(user.id, e.target.value as any)}
+                          className="text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 ring-purple-100 focus:outline-none transition-all"
+                        >
+                          <option value="user">User</option>
+                          <option value="staff">Staff</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-8 py-12 text-center text-slate-400 font-medium">No users found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

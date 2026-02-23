@@ -3,11 +3,11 @@ import { Animal, AnimalType, VolunteerShift, User, AdoptionApplication } from '.
 
 export const MOCK_USERS: User[] = [
   { id: 'u1', name: 'Sarah Miller', email: 'sarah.m@example.com', role: 'admin' },
-  { id: 'u2', name: 'James Wilson', email: 'j.wilson@example.com', role: 'volunteer' },
-  { id: 'u3', name: 'Emma Thompson', email: 'emma.t@example.com', role: 'volunteer' },
+  { id: 'u2', name: 'James Wilson', email: 'j.wilson@example.com', role: 'staff' },
+  { id: 'u3', name: 'Emma Thompson', email: 'emma.t@example.com', role: 'staff' },
   { id: 'u4', name: 'Michael Chen', email: 'mchen88@example.com', role: 'user' },
   { id: 'u5', name: 'David Rodriguez', email: 'david.r@example.com', role: 'user' },
-  { id: 'u6', name: 'Jessica Lee', email: 'jlee_paws@example.com', role: 'volunteer' },
+  { id: 'u6', name: 'Jessica Lee', email: 'jlee_paws@example.com', role: 'staff' },
 ];
 
 export const MOCK_ANIMALS: Animal[] = [

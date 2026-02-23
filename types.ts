@@ -41,5 +41,5 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'volunteer' | 'admin';
+  role: 'user' | 'staff' | 'admin';
 }

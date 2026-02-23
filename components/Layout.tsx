@@ -1,9 +1,38 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
+import { auth, isFirebaseConfigured } from '../lib/firebase';
+import { getUserProfile } from '../services/firebaseService';
+import { User as AppUser } from '../types';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [profile, setProfile] = useState<AppUser | null>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userProfile = await getUserProfile(currentUser.uid);
+        setProfile(userProfile);
+      } else {
+        setProfile(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    if (!isFirebaseConfigured) return;
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
   const isActive = (path: string) => location.hash === path || (location.hash === '' && path === '#/');
 
   return (
@@ -25,12 +54,31 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link to="/adopt" className={`text-sm font-medium transition-colors ${isActive('#/adopt') ? 'text-purple-600' : 'text-slate-600 hover:text-purple-600'}`}>Adopt</Link>
               <Link to="/volunteer" className={`text-sm font-medium transition-colors ${isActive('#/volunteer') ? 'text-purple-600' : 'text-slate-600 hover:text-purple-600'}`}>Volunteer</Link>
               <Link to="/donate" className={`text-sm font-medium transition-colors ${isActive('#/donate') ? 'text-purple-600' : 'text-slate-600 hover:text-purple-600'}`}>Donate</Link>
-              <Link to="/admin" className={`text-sm font-medium px-3 py-1 rounded-lg bg-slate-50 border border-slate-100 transition-all ${isActive('#/admin') ? 'text-purple-600 border-purple-100 bg-purple-50' : 'text-slate-400 hover:text-slate-600'}`}>Admin</Link>
+              {(profile?.role === 'admin' || profile?.role === 'staff') && (
+                <Link to="/admin" className={`text-sm font-medium px-3 py-1 rounded-lg bg-slate-50 border border-slate-100 transition-all ${isActive('#/admin') ? 'text-purple-600 border-purple-100 bg-purple-50' : 'text-slate-400 hover:text-slate-600'}`}>Admin</Link>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">
-              <Link to="/auth" className="text-sm font-semibold text-slate-700 hover:text-purple-600 transition-colors">Sign In</Link>
-              <Link to="/auth" className="bg-purple-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-purple-100 hover:bg-purple-700 transition-all">Sign Up</Link>
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <div className="hidden sm:block text-right">
+                    <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Welcome</div>
+                    <div className="text-sm font-bold text-slate-800">{user.displayName || user.email}</div>
+                  </div>
+                  <button 
+                    onClick={handleSignOut}
+                    className="text-sm font-semibold text-slate-500 hover:text-red-600 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link to="/auth" className="text-sm font-semibold text-slate-700 hover:text-purple-600 transition-colors">Sign In</Link>
+                  <Link to="/register" className="bg-purple-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-purple-100 hover:bg-purple-700 transition-all">Sign Up</Link>
+                </>
+              )}
             </div>
           </div>
         </div>

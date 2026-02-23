@@ -1,8 +1,5 @@
 {
   "name": "Vic's Animal Shelter",
   "description": "A modern and compassionate animal shelter platform featuring adoption profiles, volunteer management, and smart pet-matching powered by Gemini AI.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

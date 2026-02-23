@@ -97,7 +97,7 @@ const Home: React.FC = () => {
           </div>
           <div className="md:w-1/2 flex gap-4">
             <div className="flex-1 space-y-4">
-               <img src="https://loremflickr.com/400/500/dog,care?lock=99" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" />
+               <img src="https://loremflickr.com/400/500/cat,rescue?lock=123" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Cat care" />
                <img src="https://loremflickr.com/400/300/cat?lock=88" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" />
             </div>
             <div className="flex-1 space-y-4 pt-8">

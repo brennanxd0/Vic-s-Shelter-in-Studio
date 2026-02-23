@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Animal, AnimalType } from '../types.ts';
+import { Animal, AnimalType, AdoptionApplication } from '../types.ts';
 import { getAIPetAdvice, generateAnimalBio } from '../services/geminiService.ts';
+import { submitApplication } from '../services/firebaseService';
 
 interface AdoptProps {
   animals: Animal[];
@@ -14,6 +15,15 @@ const Adopt: React.FC<AdoptProps> = ({ animals }) => {
   const [isMatching, setIsMatching] = useState(false);
   const [lifestyle, setLifestyle] = useState('apartment');
   const [animalBios, setAnimalBios] = useState<Record<string, string>>({});
+  const [isApplying, setIsApplying] = useState(false);
+  const [appFormData, setAppFormData] = useState({
+    applicantName: '',
+    applicantEmail: '',
+    homeType: 'House',
+    hasOtherPets: false,
+    reason: ''
+  });
+  const [appStatus, setAppStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
 
   const filteredAnimals = filter === 'All' 
     ? animals 
@@ -31,6 +41,32 @@ const Adopt: React.FC<AdoptProps> = ({ animals }) => {
     if (animalBios[animal.id]) return;
     const bio = await generateAnimalBio(animal);
     setAnimalBios(prev => ({ ...prev, [animal.id]: bio }));
+  };
+
+  const handleAppSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAnimal) return;
+    
+    setAppStatus('submitting');
+    try {
+      await submitApplication({
+        animalId: selectedAnimal.id,
+        ...appFormData,
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+      });
+      setAppStatus('success');
+      setTimeout(() => {
+        setAppStatus('idle');
+        setIsApplying(false);
+        setSelectedAnimal(null);
+        setAppFormData({ applicantName: '', applicantEmail: '', homeType: 'House', hasOtherPets: false, reason: '' });
+      }, 2000);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      alert("Failed to submit application. Please try again.");
+      setAppStatus('idle');
+    }
   };
 
   return (
@@ -175,10 +211,82 @@ const Adopt: React.FC<AdoptProps> = ({ animals }) => {
                   </p>
                 </div>
 
-                <button className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all">
-                  Apply to Adopt {selectedAnimal.name}
-                </button>
-                <p className="text-center text-slate-400 text-[10px] mt-5 font-bold uppercase tracking-widest">No application fee required • Vic's Animal Shelter</p>
+                {!isApplying ? (
+                  <>
+                    <button 
+                      onClick={() => setIsApplying(true)}
+                      className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all"
+                    >
+                      Apply to Adopt {selectedAnimal.name}
+                    </button>
+                    <p className="text-center text-slate-400 text-[10px] mt-5 font-bold uppercase tracking-widest">No application fee required • Vic's Animal Shelter</p>
+                  </>
+                ) : appStatus === 'success' ? (
+                  <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-3xl text-center">
+                    <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-emerald-100">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <h3 className="text-xl font-black text-emerald-900 mb-2">Application Sent!</h3>
+                    <p className="text-emerald-700 text-sm font-medium">Vic's staff will review your request and contact you soon.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleAppSubmit} className="space-y-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-lg font-bold text-slate-900">Adoption Request</h3>
+                      <button type="button" onClick={() => setIsApplying(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600">Cancel</button>
+                    </div>
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="Your Full Name" 
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 ring-purple-100"
+                      value={appFormData.applicantName}
+                      onChange={e => setAppFormData({...appFormData, applicantName: e.target.value})}
+                    />
+                    <input 
+                      required
+                      type="email" 
+                      placeholder="Email Address" 
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 ring-purple-100"
+                      value={appFormData.applicantEmail}
+                      onChange={e => setAppFormData({...appFormData, applicantEmail: e.target.value})}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <select 
+                        className="px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl"
+                        value={appFormData.homeType}
+                        onChange={e => setAppFormData({...appFormData, homeType: e.target.value})}
+                      >
+                        <option value="House">House</option>
+                        <option value="Apartment">Apartment</option>
+                        <option value="Farm">Farm</option>
+                      </select>
+                      <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl">
+                        <input 
+                          type="checkbox" 
+                          id="otherPets"
+                          checked={appFormData.hasOtherPets}
+                          onChange={e => setAppFormData({...appFormData, hasOtherPets: e.target.checked})}
+                        />
+                        <label htmlFor="otherPets" className="text-xs font-bold text-slate-600">Other Pets?</label>
+                      </div>
+                    </div>
+                    <textarea 
+                      required
+                      placeholder="Why do you want to adopt?" 
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl h-24 focus:ring-2 ring-purple-100"
+                      value={appFormData.reason}
+                      onChange={e => setAppFormData({...appFormData, reason: e.target.value})}
+                    ></textarea>
+                    <button 
+                      type="submit" 
+                      disabled={appStatus === 'submitting'}
+                      className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all disabled:opacity-50"
+                    >
+                      {appStatus === 'submitting' ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
           </div>

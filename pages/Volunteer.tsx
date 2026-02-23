@@ -1,10 +1,22 @@
 
-import React, { useState } from 'react';
-import { MOCK_SHIFTS } from '../constants.tsx';
+import React, { useState, useEffect } from 'react';
+import { VolunteerShift } from '../types.ts';
+import { fetchShifts } from '../services/firebaseService.ts';
 
 const Volunteer: React.FC = () => {
+  const [shifts, setShifts] = useState<VolunteerShift[]>([]);
   const [showRegForm, setShowRegForm] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadShifts = async () => {
+      const data = await fetchShifts();
+      setShifts(data);
+      setLoading(false);
+    };
+    loadShifts();
+  }, []);
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,30 +44,36 @@ const Volunteer: React.FC = () => {
           </h2>
           
           <div className="space-y-4">
-            {MOCK_SHIFTS.map(shift => (
-              <div key={shift.id} className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-purple-200 transition-all duration-300">
-                <div className="flex items-center gap-6 w-full sm:w-auto">
-                  <div className="bg-slate-50 w-16 h-16 rounded-2xl flex flex-col items-center justify-center text-slate-500 font-bold border border-slate-100">
-                    <span className="text-[10px] uppercase opacity-60 tracking-widest">{new Date(shift.date).toLocaleString('default', { month: 'short' })}</span>
-                    <span className="text-2xl text-slate-800 leading-none">{new Date(shift.date).getDate()}</span>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{shift.title}</h3>
-                    <div className="flex items-center text-sm text-slate-500 mt-1">
-                       <svg className="w-4 h-4 mr-1 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                       {shift.time}
+            {loading ? (
+              <div className="py-12 text-center text-slate-400 font-bold uppercase tracking-widest animate-pulse">Loading shifts...</div>
+            ) : shifts.length > 0 ? (
+              shifts.map(shift => (
+                <div key={shift.id} className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-purple-200 transition-all duration-300">
+                  <div className="flex items-center gap-6 w-full sm:w-auto">
+                    <div className="bg-slate-50 w-16 h-16 rounded-2xl flex flex-col items-center justify-center text-slate-500 font-bold border border-slate-100">
+                      <span className="text-[10px] uppercase opacity-60 tracking-widest">{new Date(shift.date).toLocaleString('default', { month: 'short' })}</span>
+                      <span className="text-2xl text-slate-800 leading-none">{new Date(shift.date).getDate()}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">{shift.title}</h3>
+                      <div className="flex items-center text-sm text-slate-500 mt-1">
+                         <svg className="w-4 h-4 mr-1 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                         {shift.time}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
+                     <div className="text-right hidden sm:block">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available</div>
+                        <div className="text-slate-900 font-bold">{shift.slots} Slots</div>
+                     </div>
+                     <button className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-slate-100">Claim</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                   <div className="text-right hidden sm:block">
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available</div>
-                      <div className="text-slate-900 font-bold">{shift.slots} Slots</div>
-                   </div>
-                   <button className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-slate-100">Claim</button>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="py-12 text-center text-slate-400 font-bold">No shifts currently available.</div>
+            )}
           </div>
           
           <div className="mt-12 p-8 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center">
