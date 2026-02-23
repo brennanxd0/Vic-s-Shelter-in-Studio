@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Animal, AnimalType, AdoptionApplication } from '../types.ts';
 import { getAIPetAdvice, generateAnimalBio } from '../services/geminiService.ts';
 import { submitApplication } from '../services/firebaseService';
+import { toast } from 'sonner';
 
 interface AdoptProps {
   animals: Animal[];
@@ -56,6 +57,7 @@ const Adopt: React.FC<AdoptProps> = ({ animals }) => {
         submittedAt: new Date().toISOString()
       });
       setAppStatus('success');
+      toast.success(`Application for ${selectedAnimal.name} submitted successfully!`);
       setTimeout(() => {
         setAppStatus('idle');
         setIsApplying(false);
@@ -64,7 +66,7 @@ const Adopt: React.FC<AdoptProps> = ({ animals }) => {
       }, 2000);
     } catch (error) {
       console.error("Error submitting application:", error);
-      alert("Failed to submit application. Please try again.");
+      toast.error("Failed to submit application. Please try again.");
       setAppStatus('idle');
     }
   };

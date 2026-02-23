@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Adopt from './pages/Adopt';
@@ -10,36 +11,47 @@ import Auth from './pages/Auth';
 import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import { auth, isFirebaseConfigured } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { fetchAnimals, fetchApplications, seedInitialData, getUserProfile } from './services/firebaseService';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { fetchAnimals, fetchApplications, getUserProfile, createUserProfile } from './services/firebaseService';
 import { User as AppUser, Animal, AdoptionApplication } from './types';
 
 const App: React.FC = () => {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [applications, setApplications] = useState<AdoptionApplication[]>([]);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const initApp = async () => {
       try {
-        await seedInitialData();
-        
-        const [animalsData, appsData] = await Promise.all([
-          fetchAnimals(),
-          fetchApplications()
-        ]);
-        
+        const animalsData = await fetchAnimals();
         setAnimals(animalsData);
-        setApplications(appsData);
       } catch (error) {
         console.error("Error initializing app with Firebase:", error);
       }
     };
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const profile = await getUserProfile(user.uid);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        let profile = await getUserProfile(currentUser.uid);
+        
+        // Auto-promote specific user to admin for setup
+        if (currentUser.email === 'brennanxd0@gmail.com') {
+          if (!profile || profile.role !== 'admin') {
+            console.log("Ensuring setup user has admin role...");
+            // Use setDoc via createUserProfile to ensure doc exists and has admin role
+            const adminData = {
+              name: currentUser.displayName || 'Admin Setup',
+              email: currentUser.email,
+              role: 'admin' as const
+            };
+            await createUserProfile(currentUser.uid, adminData);
+            profile = { id: currentUser.uid, ...adminData, createdAt: new Date().toISOString() };
+          }
+        }
+        
         setUserProfile(profile);
       } else {
         setUserProfile(null);
@@ -50,6 +62,20 @@ const App: React.FC = () => {
     initApp();
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const loadSensitiveData = async () => {
+      if (userProfile?.role === 'admin' || userProfile?.role === 'staff') {
+        try {
+          const appsData = await fetchApplications();
+          setApplications(appsData);
+        } catch (error) {
+          console.error("Error fetching applications:", error);
+        }
+      }
+    };
+    loadSensitiveData();
+  }, [userProfile]);
 
   if (loading) {
     return (
@@ -64,7 +90,8 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <Layout>
+      <Toaster position="top-right" richColors />
+      <Layout user={user} profile={userProfile}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/adopt" element={<Adopt animals={animals} />} />

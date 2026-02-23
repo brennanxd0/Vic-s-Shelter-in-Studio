@@ -2,6 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { User, Animal, AnimalType, AdoptionApplication } from '../types.ts';
 import { updateApplicationStatus, addAnimal, updateAnimal, fetchUsers, updateUserRole as updateUserRoleService } from '../services/firebaseService';
+import { auth } from '../lib/firebase';
+import { toast } from 'sonner';
+import { Users, Calendar, Package, FileText, RefreshCw, Plus, Edit2, Trash2, Check, X, Eye } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface AdminDashboardProps {
   animals: Animal[];
@@ -44,9 +48,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     try {
       await updateUserRoleService(userId, newRole);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      toast.success(`User role updated to ${newRole} successfully.`);
     } catch (error) {
       console.error("Error updating user role:", error);
-      alert("Failed to update user role.");
+      toast.error("Failed to update user role.");
     }
   };
 
@@ -57,9 +62,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       if (selectedApp?.id === id) {
         setSelectedApp(prev => prev ? { ...prev, status } : null);
       }
+      toast.success(`Application ${status} successfully.`);
     } catch (error) {
       console.error("Error updating application status:", error);
-      alert("Failed to update application status.");
+      toast.error("Failed to update application status.");
     }
   };
 
@@ -96,26 +102,60 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     
     try {
       if (editingAnimalId) {
+        const dogImages = [
+          'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800'
+        ];
+        const catImages = [
+          'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1573865668131-974279df4a94?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800'
+        ];
+        
+        const currentAnimal = animals.find(a => a.id === editingAnimalId);
+        const typeChanged = formData.type !== currentAnimal?.type;
+        
+        const newImage = typeChanged 
+          ? (formData.type === AnimalType.DOG 
+              ? dogImages[Math.floor(Math.random() * dogImages.length)] 
+              : catImages[Math.floor(Math.random() * catImages.length)])
+          : currentAnimal?.image;
+
         const updatedData = { 
           ...formData as Animal,
-          image: formData.type !== animals.find(a => a.id === editingAnimalId)?.type ? `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${Math.floor(Math.random() * 1000)}` : animals.find(a => a.id === editingAnimalId)?.image
+          image: newImage || ''
         };
         await updateAnimal(editingAnimalId, updatedData);
         setAnimals(prev => prev.map(a => a.id === editingAnimalId ? { ...a, ...updatedData } : a));
+        toast.success(`${updatedData.name}'s profile updated successfully.`);
       } else {
-        const lockSeed = Math.floor(Math.random() * 1000);
+        const dogImages = [
+          'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800'
+        ];
+        const catImages = [
+          'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1573865668131-974279df4a94?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800'
+        ];
+
         const animalData: Omit<Animal, 'id'> = {
           ...formData as Animal,
-          image: `https://loremflickr.com/800/600/${formData.type === AnimalType.DOG ? 'dog' : 'cat'}?lock=${lockSeed}`,
+          image: formData.type === AnimalType.DOG 
+            ? dogImages[Math.floor(Math.random() * dogImages.length)] 
+            : catImages[Math.floor(Math.random() * catImages.length)],
           tags: ['New Arrival']
         };
         const newId = await addAnimal(animalData);
         setAnimals(prev => [{ ...animalData, id: newId }, ...prev]);
+        toast.success(`${animalData.name} added to inventory successfully.`);
       }
       resetForm();
     } catch (error) {
       console.error("Error saving animal:", error);
-      alert("Failed to save animal profile.");
+      toast.error("Failed to save animal profile.");
     }
   };
 
@@ -130,54 +170,119 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
   const getAnimalName = (id: string) => animals.find(a => a.id === id)?.name || "Unknown Pet";
   const getAnimalImage = (id: string) => animals.find(a => a.id === id)?.image || "";
 
+  const handleSyncData = async () => {
+    if (!confirm("This will overwrite existing Firestore data with mock data. Continue?")) return;
+    
+    const syncPromise = (async () => {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Authentication required");
+
+      const response = await fetch('/api/admin/seed-data', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Sync failed");
+      }
+      
+      const result = await response.json();
+      return result.message;
+    })();
+
+    toast.promise(syncPromise, {
+      loading: 'Syncing mock data to Firestore...',
+      success: (message) => {
+        setTimeout(() => window.location.reload(), 1500);
+        return message;
+      },
+      error: (err: any) => `Sync failed: ${err.message}`,
+    });
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-10">
-        <h1 className="text-3xl font-black text-slate-900 mb-2">Vic's Control Center</h1>
-        <p className="text-slate-500 font-medium">Manage your shelter community, animal inventory, and adoptions.</p>
+      <div className="mb-10 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Vic's Control Center</h1>
+          <p className="text-slate-500 font-medium">Manage your shelter community, animal inventory, and adoptions.</p>
+        </div>
+        <button 
+          onClick={handleSyncData}
+          className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all uppercase tracking-widest flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Sync Mock Data
+        </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         {[
-          { label: 'Total Members', value: users.length, icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', color: 'blue' },
-          { label: 'Staff Members', value: users.filter(u => u.role === 'staff').length, icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'emerald' },
-          { label: 'Animals Hosted', value: animals.length, icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', color: 'purple' },
+          { label: 'Total Members', value: users.length, icon: Users, color: 'blue' },
+          { label: 'Staff Members', value: users.filter(u => u.role === 'staff').length, icon: Check, color: 'emerald' },
+          { label: 'Animals Hosted', value: animals.length, icon: Package, color: 'purple' },
           { 
             label: 'Pending Apps', 
             value: pendingApps.length, 
-            icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', 
+            icon: FileText, 
             color: 'indigo' 
           },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm shadow-slate-50 hover:shadow-md transition-all">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 bg-${stat.color}-50 text-${stat.color}-600 shadow-inner`}>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon}/></svg>
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm shadow-slate-50 hover:shadow-md transition-all">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 bg-${stat.color}-50 text-${stat.color}-600 shadow-inner`}>
+                <Icon className="w-6 h-6" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">{stat.value}</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</div>
             </div>
-            <div className="text-2xl font-black text-slate-900">{stat.value}</div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-[1.25rem] mb-8 w-fit shadow-inner">
-        <button 
-          onClick={() => setActiveTab('users')}
-          className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'users' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-        >User Roles</button>
-        <button 
-          onClick={() => setActiveTab('volunteers')}
-          className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'volunteers' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-        >Staff</button>
-        <button 
-          onClick={() => setActiveTab('inventory')}
-          className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'inventory' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-        >Inventory</button>
-        <button 
-          onClick={() => setActiveTab('applications')}
-          className={`px-6 md:px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'applications' ? 'bg-white text-purple-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
-        >Adoptions {pendingApps.length > 0 && <span className="ml-2 px-2 py-0.5 bg-purple-600 text-white text-[10px] rounded-full">{pendingApps.length}</span>}</button>
+      <div className="relative flex flex-wrap bg-slate-100/50 p-1.5 rounded-[1.5rem] mb-10 w-fit shadow-inner border border-slate-200/50 backdrop-blur-sm">
+        {[
+          { id: 'users', label: 'User Roles', icon: Users },
+          { id: 'volunteers', label: 'Staff', icon: Calendar },
+          { id: 'inventory', label: 'Inventory', icon: Package },
+          { id: 'applications', label: 'Adoptions', icon: FileText, count: pendingApps.length },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`relative px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2.5 z-10 ${
+                isActive ? 'text-purple-700' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 bg-white rounded-xl shadow-sm border border-purple-100"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <Icon className={`w-4 h-4 relative z-20 ${isActive ? 'text-purple-600' : 'text-slate-400'}`} />
+              <span className="relative z-20">{tab.label}</span>
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className={`relative z-20 ml-1 px-2 py-0.5 text-[10px] rounded-full ${
+                  isActive ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === 'users' && (
@@ -239,6 +344,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
         </div>
       )}
 
+      {activeTab === 'volunteers' && (
+        <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm p-12 text-center">
+          <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
+            <Calendar className="w-10 h-10" />
+          </div>
+          <h3 className="text-xl font-black text-slate-900 mb-2">Staff Management</h3>
+          <p className="text-slate-500 max-w-md mx-auto">This section is for managing shelter staff schedules and permissions. Feature coming soon.</p>
+        </div>
+      )}
+
       {activeTab === 'inventory' && (
         <div className="space-y-8">
           <div className="flex justify-between items-center">
@@ -253,7 +368,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
               }}
               className={`px-6 py-2.5 ${isFormOpen && !editingAnimalId ? 'bg-slate-200 text-slate-700' : 'bg-purple-600 text-white'} font-black text-sm rounded-xl shadow-lg shadow-purple-50 hover:opacity-90 transition-all flex items-center gap-2`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isFormOpen && !editingAnimalId ? "M6 18L18 6M6 6l12 12" : "M12 4v16m8-8H4"}/></svg>
+              {isFormOpen && !editingAnimalId ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               {isFormOpen && !editingAnimalId ? 'Close Form' : 'Add New Animal'}
             </button>
           </div>
@@ -325,14 +440,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                             className="p-2.5 bg-slate-50 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
                             title="Edit profile"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <Edit2 className="w-5 h-5" />
                           </button>
                           <button 
                             onClick={() => removeAnimal(animal.id)}
                             className="p-2.5 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                             title="Remove from list"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -433,7 +548,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
               onClick={() => setSelectedApp(null)}
               className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10"
             >
-              <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              <X className="w-6 h-6 text-slate-600" />
             </button>
             
             <div className="p-8 md:p-14">

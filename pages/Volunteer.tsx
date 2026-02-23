@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { VolunteerShift } from '../types.ts';
 import { fetchShifts } from '../services/firebaseService.ts';
+import { toast } from 'sonner';
 
 const Volunteer: React.FC = () => {
   const [shifts, setShifts] = useState<VolunteerShift[]>([]);
   const [showRegForm, setShowRegForm] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,11 +20,8 @@ const Volunteer: React.FC = () => {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setShowRegForm(false);
-    }, 3000);
+    toast.success("Volunteer application submitted successfully! We'll be in touch.");
+    setShowRegForm(false);
   };
 
   return (
@@ -67,7 +64,12 @@ const Volunteer: React.FC = () => {
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available</div>
                         <div className="text-slate-900 font-bold">{shift.slots} Slots</div>
                      </div>
-                     <button className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-slate-100">Claim</button>
+                      <button 
+                        onClick={() => toast.success(`Shift "${shift.title}" claimed! See you there.`)}
+                        className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-slate-100"
+                      >
+                        Claim
+                      </button>
                   </div>
                 </div>
               ))
@@ -126,40 +128,28 @@ const Volunteer: React.FC = () => {
       {showRegForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
           <div className="bg-white rounded-[3rem] max-w-lg w-full p-8 md:p-14 relative shadow-2xl">
-            {success ? (
-              <div className="text-center py-10">
-                <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-50">
-                  <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 mb-4">Application Sent!</h2>
-                <p className="text-slate-500 font-medium">We've received your interest. Welcome to the Vic's Animal Shelter family!</p>
+            <button 
+              onClick={() => setShowRegForm(false)}
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+            >
+              <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-3xl font-black text-slate-900 mb-8 italic">Join the Team</h2>
+            <form onSubmit={handleRegister} className="space-y-6">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
+                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="John Doe" />
               </div>
-            ) : (
-              <>
-                <button 
-                  onClick={() => setShowRegForm(false)}
-                  className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
-                >
-                  <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-                <h2 className="text-3xl font-black text-slate-900 mb-8 italic">Join the Team</h2>
-                <form onSubmit={handleRegister} className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
-                    <input type="text" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="John Doe" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Email Address</label>
-                    <input type="email" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="john@example.com" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Why Volunteer at Vic's?</label>
-                    <textarea required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-32" placeholder="Tell us about your love for animals..."></textarea>
-                  </div>
-                  <button type="submit" className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all">Submit Application</button>
-                </form>
-              </>
-            )}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Email Address</label>
+                <input type="email" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="john@example.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Why Volunteer at Vic's?</label>
+                <textarea required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-32" placeholder="Tell us about your love for animals..."></textarea>
+              </div>
+              <button type="submit" className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all">Submit Application</button>
+            </form>
           </div>
         </div>
       )}

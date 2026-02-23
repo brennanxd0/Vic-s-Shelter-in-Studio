@@ -8,6 +8,7 @@ export const MOCK_USERS: User[] = [
   { id: 'u4', name: 'Michael Chen', email: 'mchen88@example.com', role: 'user' },
   { id: 'u5', name: 'David Rodriguez', email: 'david.r@example.com', role: 'user' },
   { id: 'u6', name: 'Jessica Lee', email: 'jlee_paws@example.com', role: 'staff' },
+  { id: 'admin-setup', name: 'Admin Setup', email: 'brennanxd0@gmail.com', role: 'admin' },
 ];
 
 export const MOCK_ANIMALS: Animal[] = [
@@ -19,7 +20,7 @@ export const MOCK_ANIMALS: Animal[] = [
     age: '2 years',
     gender: 'Female',
     description: 'Luna is a high-energy sweetheart who loves water and long hikes. She is great with children and other dogs.',
-    image: 'https://loremflickr.com/800/600/dog,goldenretriever?lock=101',
+    image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=800',
     tags: ['Active', 'Kid-friendly', 'Water-lover']
   },
   {
@@ -30,7 +31,7 @@ export const MOCK_ANIMALS: Animal[] = [
     age: '5 years',
     gender: 'Male',
     description: 'Oliver is a distinguished gentleman who prefers quiet afternoons by the window. He loves chin scratches.',
-    image: 'https://loremflickr.com/800/600/cat,shorthair?lock=202',
+    image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
     tags: ['Quiet', 'Calm', 'Affectionate']
   },
   {
@@ -41,7 +42,7 @@ export const MOCK_ANIMALS: Animal[] = [
     age: '8 months',
     gender: 'Female',
     description: 'Bella is a curious puppy with a loud bark and an even bigger heart. She needs an owner with patience for training.',
-    image: 'https://loremflickr.com/800/600/dog,beagle?lock=303',
+    image: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800',
     tags: ['Puppy', 'Needs Training', 'Curious']
   },
   {
@@ -52,7 +53,7 @@ export const MOCK_ANIMALS: Animal[] = [
     age: '1 year',
     gender: 'Male',
     description: 'Milo is a vocal and social cat who loves to follow his humans around the house. He enjoys interactive play.',
-    image: 'https://loremflickr.com/800/600/cat,siamese?lock=404',
+    image: 'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800',
     tags: ['Vocal', 'Social', 'Playful']
   }
 ];

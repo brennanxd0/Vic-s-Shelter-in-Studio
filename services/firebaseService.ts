@@ -77,7 +77,7 @@ export const fetchApplications = async (): Promise<AdoptionApplication[]> => {
     return applications.length > 0 ? applications : MOCK_APPLICATIONS;
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Firestore permissions denied for 'applications'. Falling back to mock data.");
+      // Quietly return mock data for unauthorized users
       return MOCK_APPLICATIONS;
     }
     throw error;
@@ -95,7 +95,6 @@ export const fetchShifts = async (): Promise<VolunteerShift[]> => {
     return shifts.length > 0 ? shifts : MOCK_SHIFTS;
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Firestore permissions denied for 'shifts'. Falling back to mock data.");
       return MOCK_SHIFTS;
     }
     throw error;
@@ -113,7 +112,6 @@ export const fetchUsers = async (): Promise<User[]> => {
     return users.length > 0 ? users : MOCK_USERS;
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Firestore permissions denied for 'users'. Falling back to mock data.");
       return MOCK_USERS;
     }
     throw error;
@@ -152,52 +150,4 @@ export const updateApplicationStatus = async (id: string, status: 'approved' | '
   if (!isFirebaseConfigured) throw new Error("Firebase not configured");
   const docRef = doc(db, APPLICATIONS_COLLECTION, id);
   await updateDoc(docRef, { status });
-};
-
-// Helper to seed initial data if needed
-export const seedInitialData = async () => {
-  if (!isFirebaseConfigured) return;
-  try {
-    const animalsSnapshot = await getDocs(collection(db, ANIMALS_COLLECTION));
-    if (animalsSnapshot.empty) {
-      console.log('Seeding animals...');
-      for (const animal of MOCK_ANIMALS) {
-        const { id, ...data } = animal;
-        await setDoc(doc(db, ANIMALS_COLLECTION, id), data);
-      }
-    }
-
-    const appsSnapshot = await getDocs(collection(db, APPLICATIONS_COLLECTION));
-    if (appsSnapshot.empty) {
-      console.log('Seeding applications...');
-      for (const app of MOCK_APPLICATIONS) {
-        const { id, ...data } = app;
-        await setDoc(doc(db, APPLICATIONS_COLLECTION, id), data);
-      }
-    }
-
-    const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION));
-    if (usersSnapshot.empty) {
-      console.log('Seeding users...');
-      for (const user of MOCK_USERS) {
-        const { id, ...data } = user;
-        await setDoc(doc(db, USERS_COLLECTION, id), data);
-      }
-    }
-
-    const shiftsSnapshot = await getDocs(collection(db, SHIFTS_COLLECTION));
-    if (shiftsSnapshot.empty) {
-      console.log('Seeding shifts...');
-      for (const shift of MOCK_SHIFTS) {
-        const { id, ...data } = shift;
-        await setDoc(doc(db, SHIFTS_COLLECTION, id), data);
-      }
-    }
-  } catch (error: any) {
-    if (error.code === 'permission-denied') {
-      console.warn("Firestore permissions denied during seeding. Skipping seed.");
-      return;
-    }
-    throw error;
-  }
 };

@@ -7,34 +7,40 @@ import {
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
-      alert("Firebase is not configured. Please set your environment variables.");
+      toast.error("Firebase is not configured. Please set your environment variables.");
       return;
     }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      toast.success("Welcome back! You've signed in successfully.");
       navigate('/');
     } catch (error: any) {
       console.error("Auth error:", error);
       let message = error.message || "Authentication failed";
       
-      if (error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/network-request-failed') {
+        message = "Network error: Please check your internet connection and ensure your Firebase API Key and Auth Domain are correct. If you're using an ad-blocker, try disabling it for this site.";
+      } else if (error.code === 'auth/invalid-credential') {
         message = "Invalid email or password. Please check your credentials or ensure Email/Password auth is enabled in Firebase.";
       } else if (error.code === 'auth/operation-not-allowed') {
         message = "This sign-in method is not enabled in your Firebase console.";
       }
       
-      alert(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -42,22 +48,32 @@ const Auth: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     if (!isFirebaseConfigured) {
-      alert("Firebase is not configured. Please set your environment variables.");
+      toast.error("Firebase is not configured. Please set your environment variables.");
       return;
     }
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
+      toast.success("Signed in with Google successfully!");
       navigate('/');
     } catch (error: any) {
       console.error("Google Auth error:", error);
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        // Silent fail or gentle toast is better than an alert for user-initiated closure
+        console.log("User closed the sign-in popup.");
+        return;
+      }
+
       let message = error.message || "Google sign in failed";
       
       if (error.code === 'auth/unauthorized-domain') {
         message = "This domain is not authorized in your Firebase console. Please add the current URL to 'Authorized Domains' in Firebase Authentication settings.";
+      } else if (error.code === 'auth/network-request-failed') {
+        message = "Network error: Could not reach Google servers. Please check your connection or try again.";
       }
       
-      alert(message);
+      toast.error(message);
     }
   };
 
@@ -89,15 +105,24 @@ const Auth: React.FC = () => {
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Password</label>
               <button type="button" className="text-xs font-black text-purple-700 hover:underline tracking-widest uppercase">Forgot?</button>
             </div>
-            <input 
-              required
-              type="password" 
-              title="password" 
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input 
+                required
+                type={showPassword ? "text" : "password"} 
+                title="password" 
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium pr-14" 
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <button 

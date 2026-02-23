@@ -1,29 +1,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
+import { signOut, User as FirebaseUser } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../lib/firebase';
-import { getUserProfile } from '../services/firebaseService';
 import { User as AppUser } from '../types';
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [profile, setProfile] = useState<AppUser | null>(null);
-  const location = useLocation();
+interface LayoutProps {
+  children: React.ReactNode;
+  user: FirebaseUser | null;
+  profile: AppUser | null;
+}
 
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        const userProfile = await getUserProfile(currentUser.uid);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
+  const location = useLocation();
 
   const handleSignOut = async () => {
     if (!isFirebaseConfigured) return;
