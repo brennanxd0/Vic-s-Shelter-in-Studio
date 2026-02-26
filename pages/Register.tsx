@@ -34,7 +34,7 @@ const Register: React.FC = () => {
       await createUserProfile(userCredential.user.uid, {
         name: fullName,
         email: email,
-        role: 'user'
+        role: 'basicUser'
       });
       toast.success("Account created successfully! Welcome to Vic's Animal Shelter.");
       navigate('/');

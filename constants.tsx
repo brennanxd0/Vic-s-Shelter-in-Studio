@@ -5,8 +5,8 @@ export const MOCK_USERS: User[] = [
   { id: 'u1', name: 'Sarah Miller', email: 'sarah.m@example.com', role: 'admin' },
   { id: 'u2', name: 'James Wilson', email: 'j.wilson@example.com', role: 'staff' },
   { id: 'u3', name: 'Emma Thompson', email: 'emma.t@example.com', role: 'staff' },
-  { id: 'u4', name: 'Michael Chen', email: 'mchen88@example.com', role: 'user' },
-  { id: 'u5', name: 'David Rodriguez', email: 'david.r@example.com', role: 'user' },
+  { id: 'u4', name: 'Michael Chen', email: 'mchen88@example.com', role: 'volunteer' },
+  { id: 'u5', name: 'David Rodriguez', email: 'david.r@example.com', role: 'basicUser' },
   { id: 'u6', name: 'Jessica Lee', email: 'jlee_paws@example.com', role: 'staff' },
   { id: 'admin-setup', name: 'Admin Setup', email: 'brennanxd0@gmail.com', role: 'admin' },
 ];
@@ -61,6 +61,7 @@ export const MOCK_ANIMALS: Animal[] = [
 export const MOCK_APPLICATIONS: AdoptionApplication[] = [
   { 
     id: 'app1', 
+    userId: 'mock-user-1',
     animalId: '1', 
     applicantName: 'Alice Smith', 
     applicantEmail: 'alice.s@example.com',
@@ -72,6 +73,7 @@ export const MOCK_APPLICATIONS: AdoptionApplication[] = [
   },
   { 
     id: 'app2', 
+    userId: 'mock-user-2',
     animalId: '2', 
     applicantName: 'Bob Brown', 
     applicantEmail: 'bob.b@example.com',
@@ -83,6 +85,7 @@ export const MOCK_APPLICATIONS: AdoptionApplication[] = [
   },
   { 
     id: 'app3', 
+    userId: 'mock-user-3',
     animalId: '1', 
     applicantName: 'Charlie Davis', 
     applicantEmail: 'charlie.d@example.com',
@@ -94,6 +97,7 @@ export const MOCK_APPLICATIONS: AdoptionApplication[] = [
   },
   { 
     id: 'app4', 
+    userId: 'mock-user-4',
     animalId: '4', 
     applicantName: 'Diana Prince', 
     applicantEmail: 'diana.p@example.com',
@@ -105,6 +109,7 @@ export const MOCK_APPLICATIONS: AdoptionApplication[] = [
   },
   { 
     id: 'app5', 
+    userId: 'mock-user-5',
     animalId: '3', 
     applicantName: 'Edward Norton', 
     applicantEmail: 'ed.n@example.com',

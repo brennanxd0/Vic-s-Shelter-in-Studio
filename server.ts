@@ -6,6 +6,16 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Request logger for debugging
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`[DEBUG] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+  });
+
   app.use(express.json());
 
   // API routes
@@ -27,7 +37,7 @@ async function startServer() {
         return res.status(404).json({ error: "User profile not found" });
       }
 
-      res.json({ role: userDoc.data()?.role || "user" });
+      res.json({ role: userDoc.data()?.role || "basicUser" });
     } catch (error) {
       console.error("Error verifying role:", error);
       res.status(401).json({ error: "Unauthorized" });
@@ -105,6 +115,62 @@ async function startServer() {
     } catch (error: any) {
       console.error("Error seeding database:", error);
       res.status(500).json({ error: error.message || "Internal server error during seeding" });
+    }
+  });
+
+  // Update user role and set custom claims (Admin/Staff only)
+  app.post("/api/admin/update-role", async (req, res) => {
+    const idToken = req.headers.authorization?.split("Bearer ")[1];
+    const { targetUid, newRole } = req.body;
+
+    if (!idToken || !targetUid || !newRole) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const validRoles = ["admin", "staff", "volunteer", "basicUser"];
+    if (!validRoles.includes(newRole)) {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+
+    try {
+      const decodedToken = await adminAuth().verifyIdToken(idToken);
+      const requesterUid = decodedToken.uid;
+      
+      const requesterDoc = await adminDb().collection("users").doc(requesterUid).get();
+      const requesterRole = requesterDoc.data()?.role;
+
+      if (requesterRole !== "admin" && requesterRole !== "staff") {
+        return res.status(403).json({ error: "Forbidden: Insufficient permissions" });
+      }
+
+      const targetDoc = await adminDb().collection("users").doc(targetUid).get();
+      if (!targetDoc.exists) {
+        return res.status(404).json({ error: "Target user not found" });
+      }
+
+      const targetRole = targetDoc.data()?.role;
+
+      // Staff cannot edit other staff or admins
+      if (requesterRole === "staff") {
+        if (targetRole === "staff" || targetRole === "admin") {
+          return res.status(403).json({ error: "Forbidden: Staff cannot modify other staff or admins" });
+        }
+        // Staff can only promote to volunteer or basicUser
+        if (newRole === "admin" || newRole === "staff") {
+          return res.status(403).json({ error: "Forbidden: Staff cannot promote users to staff or admin" });
+        }
+      }
+
+      // Update Firestore
+      await adminDb().collection("users").doc(targetUid).update({ role: newRole });
+
+      // Set Custom Claims
+      await adminAuth().setCustomUserClaims(targetUid, { role: newRole });
+
+      res.json({ message: `User role updated to ${newRole} and custom claims set.` });
+    } catch (error) {
+      console.error("Error updating role:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

@@ -1,10 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Animal, AnimalType, AdoptionApplication } from '../types.ts';
-import { updateApplicationStatus, addAnimal, updateAnimal, fetchUsers, updateUserRole as updateUserRoleService } from '../services/firebaseService';
+import { User, Animal, AnimalType, AdoptionApplication, FosterApplication } from '../types.ts';
+import { 
+  updateApplicationStatus, 
+  addAnimal, 
+  updateAnimal, 
+  fetchUsers, 
+  updateUserRole as updateUserRoleService,
+  fetchFosterApplications,
+  updateFosterApplicationStatus,
+  updateAnimalStatus
+} from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { toast } from 'sonner';
-import { Users, Calendar, Package, FileText, RefreshCw, Plus, Edit2, Trash2, Check, X, Eye } from 'lucide-react';
+import { Users, Calendar, Package, FileText, RefreshCw, Plus, Edit2, Trash2, Check, X, Eye, Heart, History, RotateCcw } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface AdminDashboardProps {
@@ -12,23 +21,30 @@ interface AdminDashboardProps {
   setAnimals: React.Dispatch<React.SetStateAction<Animal[]>>;
   applications: AdoptionApplication[];
   setApplications: React.Dispatch<React.SetStateAction<AdoptionApplication[]>>;
+  profile: User | null;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, applications, setApplications }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, applications, setApplications, profile }) => {
   const [users, setUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications'>('users');
+  const [fosterApps, setFosterApps] = useState<FosterApplication[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications' | 'foster' | 'history'>('users');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAnimalId, setEditingAnimalId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<AdoptionApplication | null>(null);
+  const [selectedFosterApp, setSelectedFosterApp] = useState<FosterApplication | null>(null);
 
   useEffect(() => {
-    const loadUsers = async () => {
-      const data = await fetchUsers();
-      setUsers(data);
+    const loadData = async () => {
+      const [usersData, fosterData] = await Promise.all([
+        fetchUsers(),
+        fetchFosterApplications()
+      ]);
+      setUsers(usersData);
+      setFosterApps(fosterData);
       setLoadingUsers(false);
     };
-    loadUsers();
+    loadData();
   }, []);
   
   // Form State
@@ -43,6 +59,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
   });
 
   const pendingApps = applications.filter(app => app.status === 'pending');
+  const pendingFosterApps = fosterApps.filter(app => app.status === 'pending');
 
   const updateUserRole = async (userId: string, newRole: User['role']) => {
     try {
@@ -57,15 +74,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
 
   const handleApplication = async (id: string, status: 'approved' | 'rejected') => {
     try {
+      const app = applications.find(a => a.id === id);
       await updateApplicationStatus(id, status);
       setApplications(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+      
+      if (status === 'approved' && app) {
+        await updateAnimalStatus(app.animalId, 'adopted');
+        setAnimals(prev => prev.map(a => a.id === app.animalId ? { ...a, status: 'adopted' } : a));
+        toast.success(`Application approved and animal marked as adopted.`);
+      } else {
+        toast.success(`Application ${status} successfully.`);
+      }
+
       if (selectedApp?.id === id) {
         setSelectedApp(prev => prev ? { ...prev, status } : null);
       }
-      toast.success(`Application ${status} successfully.`);
     } catch (error) {
       console.error("Error updating application status:", error);
       toast.error("Failed to update application status.");
+    }
+  };
+
+  const handleFosterApplication = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      const app = fosterApps.find(a => a.id === id);
+      await updateFosterApplicationStatus(id, status);
+      setFosterApps(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+      
+      if (status === 'approved' && app) {
+        await updateAnimalStatus(app.animalId, 'fostered');
+        setAnimals(prev => prev.map(a => a.id === app.animalId ? { ...a, status: 'fostered' } : a));
+        toast.success(`Foster application approved and animal marked as fostered.`);
+      } else {
+        toast.success(`Foster application ${status} successfully.`);
+      }
+
+      if (selectedFosterApp?.id === id) {
+        setSelectedFosterApp(prev => prev ? { ...prev, status } : null);
+      }
+    } catch (error) {
+      console.error("Error updating foster application status:", error);
+      toast.error("Failed to update foster application status.");
+    }
+  };
+
+  const restoreAnimal = async (id: string) => {
+    try {
+      await updateAnimalStatus(id, 'available');
+      setAnimals(prev => prev.map(a => a.id === id ? { ...a, status: 'available' } : a));
+      toast.success("Animal profile restored to available list.");
+    } catch (error) {
+      console.error("Error restoring animal:", error);
+      toast.error("Failed to restore animal profile.");
     }
   };
 
@@ -163,6 +223,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'staff': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'volunteer': return 'bg-blue-100 text-blue-700 border-blue-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
@@ -253,6 +314,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
           { id: 'volunteers', label: 'Staff', icon: Calendar },
           { id: 'inventory', label: 'Inventory', icon: Package },
           { id: 'applications', label: 'Adoptions', icon: FileText, count: pendingApps.length },
+          { id: 'foster', label: 'Foster Apps', icon: Heart, count: pendingFosterApps.length },
+          { id: 'history', label: 'History', icon: History },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -323,10 +386,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                       <td className="px-8 py-6 text-right">
                         <select 
                           value={user.role}
+                          disabled={profile?.role === 'staff' && (user.role === 'staff' || user.role === 'admin')}
                           onChange={(e) => updateUserRole(user.id, e.target.value as any)}
-                          className="text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 ring-purple-100 focus:outline-none transition-all"
+                          className="text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 ring-purple-100 focus:outline-none transition-all disabled:opacity-50"
                         >
-                          <option value="user">User</option>
+                          <option value="basicUser">Basic User</option>
+                          <option value="volunteer">Volunteer</option>
                           <option value="staff">Staff</option>
                           <option value="admin">Admin</option>
                         </select>
@@ -419,7 +484,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {animals.map(animal => (
+                  {animals.filter(a => !a.status || a.status === 'available').map(animal => (
                     <tr key={animal.id} className={`hover:bg-purple-50/10 transition-colors ${editingAnimalId === animal.id ? 'bg-purple-50/50' : ''}`}>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
@@ -540,7 +605,142 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
         </div>
       )}
 
-      {/* Application Detail Modal */}
+      {activeTab === 'foster' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Applicant</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Interested In</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {fosterApps.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-8 py-12 text-center text-slate-400 font-medium">No foster applications found.</td>
+                    </tr>
+                  ) : (
+                    fosterApps.map(app => (
+                      <tr key={app.id} className="hover:bg-purple-50/10 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">
+                              {app.applicantName.charAt(0)}
+                            </div>
+                            <div className="text-slate-900 font-bold">{app.applicantName}</div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="text-slate-600 font-medium flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                            {getAnimalName(app.animalId)}
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                            app.status === 'pending' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            app.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                            'bg-red-50 text-red-700 border-red-100'
+                          }`}>
+                            {app.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => setSelectedFosterApp(app)}
+                              className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors border border-slate-100 uppercase tracking-widest"
+                            >
+                              View
+                            </button>
+                            {app.status === 'pending' && (
+                              <>
+                                <button 
+                                  onClick={() => handleFosterApplication(app.id, 'approved')}
+                                  className="px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-50 uppercase tracking-widest"
+                                >
+                                  Approve
+                                </button>
+                                <button 
+                                  onClick={() => handleFosterApplication(app.id, 'rejected')}
+                                  className="px-4 py-2 bg-slate-100 text-slate-400 text-xs font-black rounded-xl hover:text-red-600 hover:bg-red-50 transition-all uppercase tracking-widest"
+                                >
+                                  Deny
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Animal</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {animals.filter(a => a.status === 'fostered' || a.status === 'adopted').length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-12 text-center text-slate-400 font-medium">No archived animal profiles found.</td>
+                    </tr>
+                  ) : (
+                    animals.filter(a => a.status === 'fostered' || a.status === 'adopted').map(animal => (
+                      <tr key={animal.id} className="hover:bg-slate-50/30 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <img src={animal.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm grayscale opacity-60" alt={animal.name} />
+                            <div>
+                              <div className="text-slate-900 font-bold">{animal.name}</div>
+                              <div className="text-slate-400 text-[10px] uppercase font-black tracking-widest">{animal.type}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                            animal.status === 'fostered' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          }`}>
+                            {animal.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <button 
+                            onClick={() => restoreAnimal(animal.id)}
+                            className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 ml-auto uppercase tracking-widest"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            Restore Profile
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adoption Application Detail Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
           <div className="bg-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
@@ -619,6 +819,93 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   </button>
                   <button 
                     onClick={() => handleApplication(selectedApp.id, 'rejected')}
+                    className="py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-100 uppercase tracking-widest text-sm"
+                  >
+                    Deny Request
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Foster Application Detail Modal */}
+      {selectedFosterApp && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
+            <button 
+              onClick={() => setSelectedFosterApp(null)}
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10"
+            >
+              <X className="w-6 h-6 text-slate-600" />
+            </button>
+            
+            <div className="p-8 md:p-14">
+              <div className="flex items-center gap-6 mb-10">
+                 <div className="w-20 h-20 rounded-[1.75rem] bg-blue-600 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-blue-100">
+                   {selectedFosterApp.applicantName.charAt(0)}
+                 </div>
+                 <div>
+                   <h2 className="text-4xl font-black text-slate-900 tracking-tight">{selectedFosterApp.applicantName}</h2>
+                   <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">Foster Application ID: {selectedFosterApp.id.toUpperCase()}</p>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 border-t border-slate-50 pt-8">
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interested In Fostering</h4>
+                    <div className="flex items-center gap-4 bg-blue-50/30 p-4 rounded-2xl border border-blue-100/50">
+                      <img src={getAnimalImage(selectedFosterApp.animalId)} className="w-14 h-14 rounded-xl object-cover shadow-sm" alt="" />
+                      <div>
+                        <div className="font-bold text-slate-900 text-lg">{getAnimalName(selectedFosterApp.animalId)}</div>
+                        <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest">Vic's Resident</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contact Info</h4>
+                    <p className="text-slate-900 font-bold">{selectedFosterApp.applicantEmail}</p>
+                    <p className="text-slate-500 text-sm">{selectedFosterApp.address}, {selectedFosterApp.city}, {selectedFosterApp.state} {selectedFosterApp.zip}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Status</h4>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      selectedFosterApp.status === 'pending' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                      selectedFosterApp.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                      'bg-red-50 text-red-700 border-red-100'
+                    }`}>
+                      {selectedFosterApp.status}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Other Pets / Duration</h4>
+                    <p className="text-slate-900 font-bold">{selectedFosterApp.hasOtherPets ? 'Has other pets' : 'No other pets'}</p>
+                    <p className="text-slate-500 text-sm">{selectedFosterApp.fosterDuration}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 mb-10">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Experience</h4>
+                <p className="text-slate-700 leading-relaxed italic text-sm">
+                  "{selectedFosterApp.experience || "No experience details provided."}"
+                </p>
+              </div>
+
+              {selectedFosterApp.status === 'pending' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={() => handleFosterApplication(selectedFosterApp.id, 'approved')}
+                    className="py-5 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase tracking-widest text-sm"
+                  >
+                    Approve Foster
+                  </button>
+                  <button 
+                    onClick={() => handleFosterApplication(selectedFosterApp.id, 'rejected')}
                     className="py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-100 uppercase tracking-widest text-sm"
                   >
                     Deny Request

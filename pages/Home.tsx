@@ -55,6 +55,60 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Partnership Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative bg-white border border-slate-100 rounded-[3rem] p-10 md:p-20 overflow-hidden shadow-xl shadow-slate-100/50">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-50 rounded-full -mr-32 -mt-32 opacity-50"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-50 rounded-full -ml-24 -mb-24 opacity-50"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
+            <div className="md:w-2/3">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-px w-8 bg-purple-400"></div>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-purple-600">Our Community Roots</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-tight">
+                Strength in <span className="text-purple-600">Partnership</span>
+              </h2>
+              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                Vic's Animal Shelter is an animal shelter in partnership with <span className="font-bold text-slate-900">Northwestern State University</span> and <span className="font-bold text-slate-900">FAUNA</span>. 
+                This unique collaboration allows us to provide exceptional care through student-led initiatives, community outreach, and specialized veterinary support.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-100 p-2 rounded-lg mt-1">
+                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">NSU Student Program</h4>
+                    <p className="text-xs text-slate-500 mt-1">Hands-on learning for future veterinary and animal science professionals.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-100 p-2 rounded-lg mt-1">
+                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">FAUNA Support</h4>
+                    <p className="text-xs text-slate-500 mt-1">Critical funding for spay/neuter programs and emergency medical care.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="md:w-1/3 flex flex-col gap-4">
+              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 text-center transform hover:-rotate-2 transition-transform cursor-default">
+                <div className="text-purple-600 font-black text-xl mb-1">NSU</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Academic Partner</div>
+              </div>
+              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 text-center transform hover:rotate-2 transition-transform cursor-default">
+                <div className="text-purple-600 font-black text-xl mb-1">FAUNA</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Community Partner</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">

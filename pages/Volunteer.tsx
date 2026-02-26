@@ -1,13 +1,37 @@
 
 import React, { useState, useEffect } from 'react';
-import { VolunteerShift } from '../types.ts';
-import { fetchShifts } from '../services/firebaseService.ts';
+import { VolunteerShift, User, VolunteerApplication } from '../types.ts';
+import { fetchShifts, submitVolunteerApplication } from '../services/firebaseService.ts';
 import { toast } from 'sonner';
+import { User as FirebaseUser } from 'firebase/auth';
+import { Link } from 'react-router-dom';
+import { LogIn, UserPlus, AlertCircle, Lock, ShieldCheck } from 'lucide-react';
 
-const Volunteer: React.FC = () => {
+interface VolunteerProps {
+  user: FirebaseUser | null;
+  profile: User | null;
+}
+
+const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
   const [shifts, setShifts] = useState<VolunteerShift[]>([]);
   const [showRegForm, setShowRegForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [regFormData, setRegFormData] = useState({
+    applicantName: '',
+    applicantEmail: '',
+    reason: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      toast.info("Sign in to view volunteer schedules and claim shifts!", {
+        id: 'guest-prompt',
+        duration: 5000,
+        icon: <AlertCircle className="w-5 h-5 text-blue-500" />
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     const loadShifts = async () => {
@@ -18,10 +42,29 @@ const Volunteer: React.FC = () => {
     loadShifts();
   }, []);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Volunteer application submitted successfully! We'll be in touch.");
-    setShowRegForm(false);
+    if (!user) return;
+    
+    setSubmitting(true);
+    try {
+      await submitVolunteerApplication({
+        userId: user.uid,
+        applicantName: regFormData.applicantName,
+        applicantEmail: regFormData.applicantEmail,
+        reason: regFormData.reason,
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+      });
+      toast.success("Volunteer application submitted successfully! We'll be in touch.");
+      setShowRegForm(false);
+      setRegFormData({ applicantName: '', applicantEmail: '', reason: '' });
+    } catch (error) {
+      console.error("Error submitting volunteer application:", error);
+      toast.error("Failed to submit application. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -30,6 +73,28 @@ const Volunteer: React.FC = () => {
         <h1 className="text-4xl font-bold text-slate-900 mb-4">Be a Hero in Their Story</h1>
         <p className="text-slate-600 max-w-2xl text-lg">Our shelter runs on the love and dedication of our volunteers. From walking dogs to helping with events, there's a place for you at Vic's.</p>
       </div>
+
+      {!user && (
+        <div className="mb-12 bg-blue-50 border border-blue-100 rounded-[2rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-2xl">
+              <AlertCircle className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Volunteer Portal Locked</h3>
+              <p className="text-slate-600 text-sm">Create an account or sign in to view the full schedule, claim shifts, and register as a volunteer.</p>
+            </div>
+          </div>
+          <div className="flex gap-3 w-full md:w-auto">
+            <Link to="/auth" className="flex-1 md:flex-none px-6 py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
+              <LogIn className="w-4 h-4" /> Sign In
+            </Link>
+            <Link to="/register" className="flex-1 md:flex-none px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all">
+              <UserPlus className="w-4 h-4" /> Sign Up
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2">
@@ -40,7 +105,36 @@ const Volunteer: React.FC = () => {
             Upcoming Shifts
           </h2>
           
-          <div className="space-y-4">
+          <div className="space-y-4 relative">
+            {(!user || (profile?.role === 'basicUser')) && (
+              <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/30 rounded-[2rem] flex items-center justify-center">
+                <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center max-w-sm mx-4">
+                  <div className="bg-slate-100 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Lock className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    {!user ? 'Schedule is Private' : 'Volunteer Access Required'}
+                  </h3>
+                  <p className="text-slate-500 text-sm mb-6">
+                    {!user 
+                      ? 'Please sign in to view available volunteer shifts and claim your spot.' 
+                      : 'You must be a registered volunteer to view and claim shifts. Apply below!'}
+                  </p>
+                  {!user ? (
+                    <Link to="/auth" className="inline-block px-8 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all">
+                      Sign In Now
+                    </Link>
+                  ) : (
+                    <button 
+                      onClick={() => setShowRegForm(true)}
+                      className="inline-block px-8 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
+                    >
+                      Apply to Volunteer
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             {loading ? (
               <div className="py-12 text-center text-slate-400 font-bold uppercase tracking-widest animate-pulse">Loading shifts...</div>
             ) : shifts.length > 0 ? (
@@ -115,7 +209,13 @@ const Volunteer: React.FC = () => {
             </ul>
 
             <button 
-              onClick={() => setShowRegForm(true)}
+              onClick={() => {
+                if (!user) {
+                  toast.error("Please sign in to start your volunteer application.");
+                  return;
+                }
+                setShowRegForm(true);
+              }}
               className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all hover:scale-[1.02]"
             >
               Start Application
@@ -138,17 +238,43 @@ const Volunteer: React.FC = () => {
             <form onSubmit={handleRegister} className="space-y-6">
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
-                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="John Doe" />
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                  placeholder="John Doe" 
+                  value={regFormData.applicantName}
+                  onChange={e => setRegFormData({...regFormData, applicantName: e.target.value})}
+                />
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Email Address</label>
-                <input type="email" required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" placeholder="john@example.com" />
+                <input 
+                  type="email" 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                  placeholder="john@example.com" 
+                  value={regFormData.applicantEmail}
+                  onChange={e => setRegFormData({...regFormData, applicantEmail: e.target.value})}
+                />
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Why Volunteer at Vic's?</label>
-                <textarea required className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-32" placeholder="Tell us about your love for animals..."></textarea>
+                <textarea 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-32" 
+                  placeholder="Tell us about your love for animals..."
+                  value={regFormData.reason}
+                  onChange={e => setRegFormData({...regFormData, reason: e.target.value})}
+                ></textarea>
               </div>
-              <button type="submit" className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all">Submit Application</button>
+              <button 
+                type="submit" 
+                disabled={submitting}
+                className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit Application'}
+              </button>
             </form>
           </div>
         </div>

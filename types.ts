@@ -14,15 +14,44 @@ export interface Animal {
   description: string;
   image: string;
   tags: string[];
+  status?: 'available' | 'fostered' | 'adopted';
 }
 
 export interface AdoptionApplication {
   id: string;
+  userId: string;
   animalId: string;
   applicantName: string;
   applicantEmail: string;
   homeType: string;
   hasOtherPets: boolean;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+}
+
+export interface FosterApplication {
+  id: string;
+  userId: string;
+  animalId: string;
+  applicantName: string;
+  applicantEmail: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  hasOtherPets: boolean;
+  fosterDuration: string;
+  experience: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+}
+
+export interface VolunteerApplication {
+  id: string;
+  userId: string;
+  applicantName: string;
+  applicantEmail: string;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
@@ -41,6 +70,6 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'staff' | 'admin';
+  role: 'admin' | 'staff' | 'volunteer' | 'basicUser';
   createdAt?: string;
 }
