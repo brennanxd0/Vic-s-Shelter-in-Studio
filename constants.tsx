@@ -53,7 +53,7 @@ export const MOCK_ANIMALS: Animal[] = [
     age: '1 year',
     gender: 'Male',
     description: 'Milo is a vocal and social cat who loves to follow his humans around the house. He enjoys interactive play.',
-    image: 'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=800',
     tags: ['Vocal', 'Social', 'Playful']
   }
 ];

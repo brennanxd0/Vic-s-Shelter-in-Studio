@@ -175,7 +175,7 @@ const Adopt: React.FC<AdoptProps> = ({ animals, user }) => {
         {filteredAnimals.map((animal) => (
           <div key={animal.id} className="group bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
             <div className="relative h-72 overflow-hidden">
-              <img src={animal.image} alt={animal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+              <img src={animal.image} alt={animal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
               <div className="absolute top-4 left-4 flex gap-2">
                  <span className="bg-white/95 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-slate-800 shadow-sm">{animal.gender}</span>
                  <span className="bg-white/95 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-slate-800 shadow-sm">{animal.age}</span>
@@ -223,7 +223,7 @@ const Adopt: React.FC<AdoptProps> = ({ animals, user }) => {
             
             <div className="flex flex-col md:flex-row">
               <div className="md:w-1/2 h-[450px] md:h-auto">
-                <img src={selectedAnimal.image} className="w-full h-full object-cover" alt={selectedAnimal.name} />
+                <img src={selectedAnimal.image} className="w-full h-full object-cover" alt={selectedAnimal.name} referrerPolicy="no-referrer" />
               </div>
               <div className="md:w-1/2 p-8 md:p-14">
                 <div className="flex items-center gap-3 mb-4">

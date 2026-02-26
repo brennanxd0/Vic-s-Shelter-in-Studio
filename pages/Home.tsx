@@ -23,7 +23,7 @@ const Home: React.FC = () => {
           </div>
           <div className="flex-1 mt-12 md:mt-0 relative">
             <div className="relative z-10 rounded-3xl overflow-hidden shadow-2xl rotate-3 scale-95 md:scale-100 border-4 border-white">
-              <img src="https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=800" alt="Happy dog" className="w-full h-full object-cover" />
+              <img src="https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=800" alt="Happy dog" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div className="absolute top-0 right-0 -mr-4 -mt-4 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
             <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse"></div>
@@ -117,7 +117,7 @@ const Home: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { name: 'Puppies', url: 'https://images.unsplash.com/photo-1591160674255-fc8b9f79d565?auto=format&fit=crop&q=80&w=800' },
+            { name: 'Puppies', url: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800' },
             { name: 'Kittens', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&q=80&w=800' },
             { name: 'Adult Dogs', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=800' },
             { name: 'Adult Cats', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800' }
@@ -127,6 +127,7 @@ const Home: React.FC = () => {
                 src={cat.url} 
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                 alt={cat.name} 
+                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
               <div className="absolute bottom-6 left-6 text-white">
@@ -151,12 +152,12 @@ const Home: React.FC = () => {
           </div>
           <div className="md:w-1/2 flex gap-4">
             <div className="flex-1 space-y-4">
-               <img src="https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Cat care" />
-               <img src="https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" />
+               <img src="https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Cat care" referrerPolicy="no-referrer" />
+               <img src="https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
             </div>
             <div className="flex-1 space-y-4 pt-8">
-               <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" />
-               <img src="https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" />
+               <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
+               <img src="https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
             </div>
           </div>
         </div>

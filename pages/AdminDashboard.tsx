@@ -488,7 +488,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                     <tr key={animal.id} className={`hover:bg-purple-50/10 transition-colors ${editingAnimalId === animal.id ? 'bg-purple-50/50' : ''}`}>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <img src={animal.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm" alt={animal.name} />
+                          <img src={animal.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm" alt={animal.name} referrerPolicy="no-referrer" />
                           <div>
                             <div className="text-slate-900 font-bold">{animal.name}</div>
                             <div className="text-purple-500 text-[10px] uppercase font-black tracking-widest">{animal.type}</div>
@@ -707,7 +707,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                       <tr key={animal.id} className="hover:bg-slate-50/30 transition-colors">
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <img src={animal.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm grayscale opacity-60" alt={animal.name} />
+                            <img src={animal.image} className="w-14 h-14 rounded-2xl object-cover shadow-sm grayscale opacity-60" alt={animal.name} referrerPolicy="no-referrer" />
                             <div>
                               <div className="text-slate-900 font-bold">{animal.name}</div>
                               <div className="text-slate-400 text-[10px] uppercase font-black tracking-widest">{animal.type}</div>
@@ -767,7 +767,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   <div>
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interested In</h4>
                     <div className="flex items-center gap-4 bg-purple-50/30 p-4 rounded-2xl border border-purple-100/50">
-                      <img src={getAnimalImage(selectedApp.animalId)} className="w-14 h-14 rounded-xl object-cover shadow-sm" alt="" />
+                      <img src={getAnimalImage(selectedApp.animalId)} className="w-14 h-14 rounded-xl object-cover shadow-sm" alt="" referrerPolicy="no-referrer" />
                       <div>
                         <div className="font-bold text-slate-900 text-lg">{getAnimalName(selectedApp.animalId)}</div>
                         <div className="text-[10px] text-purple-600 font-black uppercase tracking-widest">Vic's Resident</div>
@@ -856,7 +856,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   <div>
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interested In Fostering</h4>
                     <div className="flex items-center gap-4 bg-blue-50/30 p-4 rounded-2xl border border-blue-100/50">
-                      <img src={getAnimalImage(selectedFosterApp.animalId)} className="w-14 h-14 rounded-xl object-cover shadow-sm" alt="" />
+                      <img src={getAnimalImage(selectedFosterApp.animalId)} className="w-14 h-14 rounded-xl object-cover shadow-sm" alt="" referrerPolicy="no-referrer" />
                       <div>
                         <div className="font-bold text-slate-900 text-lg">{getAnimalName(selectedFosterApp.animalId)}</div>
                         <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest">Vic's Resident</div>
