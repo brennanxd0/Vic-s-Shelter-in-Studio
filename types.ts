@@ -41,6 +41,9 @@ export interface FosterApplication {
   state: string;
   zip: string;
   hasOtherPets: boolean;
+  canIsolate: boolean;
+  canTransport: boolean;
+  preferences: string[];
   fosterDuration: string;
   experience: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -70,6 +73,17 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phoneNumber?: string;
+  preferredCommunication?: 'email' | 'phone';
   role: 'admin' | 'staff' | 'volunteer' | 'basicUser';
   createdAt?: string;
+}
+
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
 }

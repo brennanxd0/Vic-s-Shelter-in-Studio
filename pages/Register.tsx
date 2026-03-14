@@ -15,8 +15,11 @@ import { Eye, EyeOff } from 'lucide-react';
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [preferredCommunication, setPreferredCommunication] = useState<'email' | 'phone'>('email');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -26,6 +29,12 @@ const Register: React.FC = () => {
       toast.error("Firebase is not configured. Please set your environment variables.");
       return;
     }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match!");
+      return;
+    }
+
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -34,6 +43,8 @@ const Register: React.FC = () => {
       await createUserProfile(userCredential.user.uid, {
         name: fullName,
         email: email,
+        phoneNumber: phoneNumber || undefined,
+        preferredCommunication: preferredCommunication,
         role: 'basicUser'
       });
       toast.success("Account created successfully! Welcome to Vic's Animal Shelter.");
@@ -117,6 +128,43 @@ const Register: React.FC = () => {
             />
           </div>
           <div>
+            <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Phone Number (Optional)</label>
+            <input 
+              type="tel" 
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium" 
+              placeholder="(555) 000-0000"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Preferred Communication</label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setPreferredCommunication('email')}
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all border ${
+                  preferredCommunication === 'email' 
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-100' 
+                    : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'
+                }`}
+              >
+                Email
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreferredCommunication('phone')}
+                className={`flex-1 py-3 rounded-2xl font-bold transition-all border ${
+                  preferredCommunication === 'phone' 
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-100' 
+                    : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'
+                }`}
+              >
+                Phone
+              </button>
+            </div>
+          </div>
+          <div>
             <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Password</label>
             <div className="relative">
               <input 
@@ -135,6 +183,17 @@ const Register: React.FC = () => {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Confirm Password</label>
+            <input 
+              required
+              type={showPassword ? "text" : "password"} 
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 font-medium" 
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
           </div>
 
           <button 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Animal, AnimalType, AdoptionApplication, FosterApplication } from '../types.ts';
+import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication } from '../types.ts';
 import { 
   updateApplicationStatus, 
   addAnimal, 
@@ -9,7 +9,9 @@ import {
   updateUserRole as updateUserRoleService,
   fetchFosterApplications,
   updateFosterApplicationStatus,
-  updateAnimalStatus
+  updateAnimalStatus,
+  fetchVolunteerApplications,
+  updateVolunteerApplicationStatus
 } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { toast } from 'sonner';
@@ -27,21 +29,25 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, applications, setApplications, profile }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [fosterApps, setFosterApps] = useState<FosterApplication[]>([]);
+  const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications' | 'foster' | 'history'>('users');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAnimalId, setEditingAnimalId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<AdoptionApplication | null>(null);
   const [selectedFosterApp, setSelectedFosterApp] = useState<FosterApplication | null>(null);
+  const [selectedVolunteerApp, setSelectedVolunteerApp] = useState<VolunteerApplication | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      const [usersData, fosterData] = await Promise.all([
+      const [usersData, fosterData, volunteerData] = await Promise.all([
         fetchUsers(),
-        fetchFosterApplications()
+        fetchFosterApplications(),
+        fetchVolunteerApplications()
       ]);
       setUsers(usersData);
       setFosterApps(fosterData);
+      setVolunteerApps(volunteerData);
       setLoadingUsers(false);
     };
     loadData();
@@ -60,6 +66,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
 
   const pendingApps = applications.filter(app => app.status === 'pending');
   const pendingFosterApps = fosterApps.filter(app => app.status === 'pending');
+  const pendingVolunteerApps = volunteerApps.filter(app => app.status === 'pending');
 
   const updateUserRole = async (userId: string, newRole: User['role']) => {
     try {
@@ -115,6 +122,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     } catch (error) {
       console.error("Error updating foster application status:", error);
       toast.error("Failed to update foster application status.");
+    }
+  };
+
+  const handleVolunteerApplication = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      const app = volunteerApps.find(a => a.id === id);
+      await updateVolunteerApplicationStatus(id, status);
+      setVolunteerApps(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+      
+      if (status === 'approved' && app) {
+        // If approved, we might want to automatically update the user role to 'volunteer'
+        await updateUserRoleService(app.userId, 'volunteer');
+        setUsers(prev => prev.map(u => u.id === app.userId ? { ...u, role: 'volunteer' } : u));
+        toast.success(`Volunteer application approved and user role updated to volunteer.`);
+      } else {
+        toast.success(`Volunteer application ${status} successfully.`);
+      }
+
+      if (selectedVolunteerApp?.id === id) {
+        setSelectedVolunteerApp(prev => prev ? { ...prev, status } : null);
+      }
+    } catch (error) {
+      console.error("Error updating volunteer application status:", error);
+      toast.error("Failed to update volunteer application status.");
     }
   };
 
@@ -311,10 +342,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       <div className="relative flex flex-wrap bg-slate-100/50 p-1.5 rounded-[1.5rem] mb-10 w-fit shadow-inner border border-slate-200/50 backdrop-blur-sm">
         {[
           { id: 'users', label: 'User Roles', icon: Users },
-          { id: 'volunteers', label: 'Staff', icon: Calendar },
           { id: 'inventory', label: 'Inventory', icon: Package },
           { id: 'applications', label: 'Adoptions', icon: FileText, count: pendingApps.length },
           { id: 'foster', label: 'Foster Apps', icon: Heart, count: pendingFosterApps.length },
+          { id: 'volunteers', label: 'Volunteer Apps', icon: Calendar, count: pendingVolunteerApps.length },
           { id: 'history', label: 'History', icon: History },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -410,12 +441,78 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       )}
 
       {activeTab === 'volunteers' && (
-        <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm p-12 text-center">
-          <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
-            <Calendar className="w-10 h-10" />
+        <div className="space-y-8">
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Applicant</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {volunteerApps.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-12 text-center text-slate-400 font-medium">No volunteer applications found.</td>
+                    </tr>
+                  ) : (
+                    volunteerApps.map(app => (
+                      <tr key={app.id} className="hover:bg-purple-50/10 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">
+                              {app.applicantName.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-slate-900 font-bold">{app.applicantName}</div>
+                              <div className="text-slate-500 text-xs">{app.applicantEmail}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                            app.status === 'pending' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            app.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                            'bg-red-50 text-red-700 border-red-100'
+                          }`}>
+                            {app.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => setSelectedVolunteerApp(app)}
+                              className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-100 transition-colors border border-slate-100 uppercase tracking-widest"
+                            >
+                              View
+                            </button>
+                            {app.status === 'pending' && (
+                              <>
+                                <button 
+                                  onClick={() => handleVolunteerApplication(app.id, 'approved')}
+                                  className="px-4 py-2 bg-purple-600 text-white text-xs font-black rounded-xl hover:bg-purple-700 transition-all shadow-md shadow-purple-50 uppercase tracking-widest"
+                                >
+                                  Approve
+                                </button>
+                                <button 
+                                  onClick={() => handleVolunteerApplication(app.id, 'rejected')}
+                                  className="px-4 py-2 bg-slate-100 text-slate-400 text-xs font-black rounded-xl hover:text-red-600 hover:bg-red-50 transition-all uppercase tracking-widest"
+                                >
+                                  Deny
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <h3 className="text-xl font-black text-slate-900 mb-2">Staff Management</h3>
-          <p className="text-slate-500 max-w-md mx-auto">This section is for managing shelter staff schedules and permissions. Feature coming soon.</p>
         </div>
       )}
 
@@ -906,6 +1003,77 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   </button>
                   <button 
                     onClick={() => handleFosterApplication(selectedFosterApp.id, 'rejected')}
+                    className="py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-100 uppercase tracking-widest text-sm"
+                  >
+                    Deny Request
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Volunteer Application Detail Modal */}
+      {selectedVolunteerApp && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className="bg-white rounded-[3rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
+            <button 
+              onClick={() => setSelectedVolunteerApp(null)}
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10"
+            >
+              <X className="w-6 h-6 text-slate-600" />
+            </button>
+            
+            <div className="p-8 md:p-14">
+              <div className="flex items-center gap-6 mb-10">
+                 <div className="w-20 h-20 rounded-[1.75rem] bg-purple-600 flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-purple-100">
+                   {selectedVolunteerApp.applicantName.charAt(0)}
+                 </div>
+                 <div>
+                   <h2 className="text-4xl font-black text-slate-900 tracking-tight">{selectedVolunteerApp.applicantName}</h2>
+                   <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">Volunteer Application ID: {selectedVolunteerApp.id.toUpperCase()}</p>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 border-t border-slate-50 pt-8">
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Contact</h4>
+                    <p className="text-slate-900 font-bold">{selectedVolunteerApp.applicantEmail}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Status</h4>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      selectedVolunteerApp.status === 'pending' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                      selectedVolunteerApp.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                      'bg-red-50 text-red-700 border-red-100'
+                    }`}>
+                      {selectedVolunteerApp.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 mb-10">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Motivation Statement</h4>
+                <p className="text-slate-700 leading-relaxed italic text-sm">
+                  "{selectedVolunteerApp.reason || "No motivation statement provided."}"
+                </p>
+              </div>
+
+              {selectedVolunteerApp.status === 'pending' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={() => handleVolunteerApplication(selectedVolunteerApp.id, 'approved')}
+                    className="py-5 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700 transition-all shadow-xl shadow-purple-100 uppercase tracking-widest text-sm"
+                  >
+                    Approve Volunteer
+                  </button>
+                  <button 
+                    onClick={() => handleVolunteerApplication(selectedVolunteerApp.id, 'rejected')}
                     className="py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-100 uppercase tracking-widest text-sm"
                   >
                     Deny Request

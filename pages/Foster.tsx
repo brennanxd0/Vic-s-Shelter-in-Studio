@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Animal, AnimalType, FosterApplication } from '../types.ts';
-import { generateAnimalBio } from '../services/geminiService.ts';
 import { submitFosterApplication } from '../services/firebaseService';
 import { toast } from 'sonner';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -16,7 +15,6 @@ interface FosterProps {
 const Foster: React.FC<FosterProps> = ({ animals, user }) => {
   const [filter, setFilter] = useState<AnimalType | 'All'>('All');
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
-  const [animalBios, setAnimalBios] = useState<Record<string, string>>({});
   const [isApplying, setIsApplying] = useState(false);
   const [appFormData, setAppFormData] = useState({
     applicantName: '',
@@ -26,6 +24,9 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
     state: '',
     zip: '',
     hasOtherPets: false,
+    canIsolate: false,
+    canTransport: false,
+    preferences: [] as string[],
     fosterDuration: 'Short-term (1-2 weeks)',
     experience: ''
   });
@@ -45,10 +46,13 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
     ? animals.filter(a => !a.status || a.status === 'available')
     : animals.filter(a => a.type === filter && (!a.status || a.status === 'available'));
 
-  const getBio = async (animal: Animal) => {
-    if (animalBios[animal.id]) return;
-    const bio = await generateAnimalBio(animal);
-    setAnimalBios(prev => ({ ...prev, [animal.id]: bio }));
+  const handlePreferenceChange = (pref: string) => {
+    setAppFormData(prev => ({
+      ...prev,
+      preferences: prev.preferences.includes(pref)
+        ? prev.preferences.filter(p => p !== pref)
+        : [...prev.preferences, pref]
+    }));
   };
 
   const handleAppSubmit = async (e: React.FormEvent) => {
@@ -79,6 +83,9 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
           state: '', 
           zip: '', 
           hasOtherPets: false, 
+          canIsolate: false,
+          canTransport: false,
+          preferences: [],
           fosterDuration: 'Short-term (1-2 weeks)', 
           experience: '' 
         });
@@ -89,6 +96,28 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
       setAppStatus('idle');
     }
   };
+
+  const RadioGroup = ({ label, name, value, onChange }: { label: string, name: string, value: boolean, onChange: (val: boolean) => void }) => (
+    <div className="space-y-3">
+      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">{label}</label>
+      <div className="flex gap-3">
+        {[true, false].map((option) => (
+          <button
+            key={option.toString()}
+            type="button"
+            onClick={() => onChange(option)}
+            className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold transition-all ${
+              value === option 
+                ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-100' 
+                : 'bg-white border-slate-200 text-slate-600 hover:border-purple-200'
+            }`}
+          >
+            {option ? 'Yes' : 'No'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -183,7 +212,7 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
                 </div>
               </div>
               <p className="text-slate-600 text-sm mb-6 line-clamp-3 leading-relaxed italic">
-                {animalBios[animal.id] || animal.description}
+                {animal.description}
               </p>
               <div className="flex flex-wrap gap-2 mb-8">
                 {animal.tags.map(tag => (
@@ -191,7 +220,7 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
                 ))}
               </div>
               <button 
-                onClick={() => { setSelectedAnimal(animal); getBio(animal); }}
+                onClick={() => { setSelectedAnimal(animal); }}
                 className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-100"
               >
                 Foster {animal.name}
@@ -203,170 +232,230 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
 
       {/* Profile Modal */}
       {selectedAnimal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-          <div className="bg-white rounded-[3rem] max-w-4xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
+        <div className={`fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md ${isApplying ? 'p-0' : 'p-4'}`}>
+          <div className={`bg-white overflow-y-auto relative shadow-2xl transition-all duration-500 ${isApplying ? 'w-full h-full rounded-none' : 'max-w-4xl w-full max-h-[90vh] rounded-[3rem]'}`}>
             <button 
-              onClick={() => setSelectedAnimal(null)}
+              onClick={() => { setSelectedAnimal(null); setIsApplying(false); }}
               className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10"
             >
               <X className="w-6 h-6 text-slate-600" />
             </button>
             
-            <div className="flex flex-col md:flex-row">
-              <div className="md:w-1/2 h-[450px] md:h-auto">
-                <img src={selectedAnimal.image} className="w-full h-full object-cover" alt={selectedAnimal.name} referrerPolicy="no-referrer" />
-              </div>
-              <div className="md:w-1/2 p-8 md:p-14">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="bg-purple-100 text-purple-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">{selectedAnimal.type}</span>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-slate-500 font-bold">{selectedAnimal.breed}</span>
+            <div className={`flex flex-col ${isApplying ? 'md:flex-row min-h-full' : 'md:flex-row'}`}>
+              {!isApplying && (
+                <div className="md:w-1/2 h-[450px] md:h-auto">
+                  <img src={selectedAnimal.image} className="w-full h-full object-cover" alt={selectedAnimal.name} referrerPolicy="no-referrer" />
                 </div>
-                <h2 className="text-5xl font-black text-slate-900 mb-6">{selectedAnimal.name}</h2>
-                
-                <div className="mb-10">
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">About {selectedAnimal.name}</h3>
-                  <p className="text-slate-600 leading-relaxed italic border-l-4 border-purple-400 pl-4 bg-purple-50/20 py-4 rounded-r-2xl">
-                    {animalBios[selectedAnimal.id] || selectedAnimal.description}
-                  </p>
-                </div>
-
-                {!user ? (
-                  <div className="bg-slate-50 border border-slate-100 p-8 rounded-3xl text-center">
-                    <h3 className="text-xl font-black text-slate-900 mb-4 italic">Ready to Foster?</h3>
-                    <p className="text-slate-500 mb-6 text-sm">You must be signed in to submit a foster application for {selectedAnimal.name}.</p>
-                    <div className="flex flex-col gap-3">
-                      <Link to="/auth" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-100 hover:bg-slate-800 transition-all">
-                        Sign In to Foster
-                      </Link>
-                      <Link to="/register" className="text-sm font-bold text-purple-600 hover:underline uppercase tracking-widest">
-                        Create an Account
-                      </Link>
-                    </div>
-                  </div>
-                ) : !isApplying ? (
+              )}
+              <div className={`${isApplying ? 'w-full max-w-4xl mx-auto p-8 md:p-20' : 'md:w-1/2 p-8 md:p-14'}`}>
+                {!isApplying ? (
                   <>
-                    <button 
-                      onClick={() => setIsApplying(true)}
-                      className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all"
-                    >
-                      Apply to Foster {selectedAnimal.name}
-                    </button>
-                    <p className="text-center text-slate-400 text-[10px] mt-5 font-bold uppercase tracking-widest">Supplies provided by Vic's Animal Shelter</p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="bg-purple-100 text-purple-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">{selectedAnimal.type}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-500 font-bold">{selectedAnimal.breed}</span>
+                    </div>
+                    <h2 className="text-5xl font-black text-slate-900 mb-6">{selectedAnimal.name}</h2>
+                    
+                    <div className="mb-10">
+                      <h3 className="text-lg font-bold text-slate-900 mb-3">About {selectedAnimal.name}</h3>
+                      <p className="text-slate-600 leading-relaxed italic border-l-4 border-purple-400 pl-4 bg-purple-50/20 py-4 rounded-r-2xl">
+                        {selectedAnimal.description}
+                      </p>
+                    </div>
+
+                    {!user ? (
+                      <div className="bg-slate-50 border border-slate-100 p-8 rounded-3xl text-center">
+                        <h3 className="text-xl font-black text-slate-900 mb-4 italic">Ready to Foster?</h3>
+                        <p className="text-slate-500 mb-6 text-sm">You must be signed in to submit a foster application for {selectedAnimal.name}.</p>
+                        <div className="flex flex-col gap-3">
+                          <Link to="/auth" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-100 hover:bg-slate-800 transition-all">
+                            Sign In to Foster
+                          </Link>
+                          <Link to="/register" className="text-sm font-bold text-purple-600 hover:underline uppercase tracking-widest">
+                            Create an Account
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => setIsApplying(true)}
+                          className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all"
+                        >
+                          Apply to Foster {selectedAnimal.name}
+                        </button>
+                        <p className="text-center text-slate-400 text-[10px] mt-5 font-bold uppercase tracking-widest">Supplies provided by Vic's Animal Shelter</p>
+                      </>
+                    )}
                   </>
                 ) : appStatus === 'success' ? (
-                  <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-3xl text-center">
-                    <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-emerald-100">
-                      < Heart className="w-8 h-8" />
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-8 shadow-2xl shadow-emerald-100">
+                      <Heart className="w-12 h-12" />
                     </div>
-                    <h3 className="text-xl font-black text-emerald-900 mb-2">Application Sent!</h3>
-                    <p className="text-emerald-700 text-sm font-medium">Vic's staff will review your foster request and contact you soon.</p>
+                    <h3 className="text-4xl font-black text-slate-900 mb-4">Application Sent!</h3>
+                    <p className="text-slate-600 text-lg max-w-md mx-auto">Vic's staff will review your foster request for {selectedAnimal.name} and contact you soon.</p>
                   </div>
                 ) : (
-                  <form onSubmit={handleAppSubmit} className="space-y-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-lg font-bold text-slate-900">Foster Request</h3>
-                      <button type="button" onClick={() => setIsApplying(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600">Cancel</button>
+                  <form onSubmit={handleAppSubmit} className="space-y-8">
+                    <div className="mb-12">
+                      <h2 className="text-4xl font-black text-slate-900 mb-2">Foster Application</h2>
+                      <p className="text-slate-500">Helping {selectedAnimal.name} find a temporary home.</p>
                     </div>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="Your Full Name" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 ring-purple-100"
-                      value={appFormData.applicantName}
-                      onChange={e => setAppFormData({...appFormData, applicantName: e.target.value})}
-                    />
-                    <input 
-                      required
-                      type="email" 
-                      placeholder="Email Address" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 ring-purple-100"
-                      value={appFormData.applicantEmail}
-                      onChange={e => setAppFormData({...appFormData, applicantEmail: e.target.value})}
-                    />
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="Home Address" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 ring-purple-100"
-                      value={appFormData.address}
-                      onChange={e => setAppFormData({...appFormData, address: e.target.value})}
-                    />
-                    <div className="grid grid-cols-3 gap-4">
-                      <input 
-                        required
-                        type="text" 
-                        placeholder="City" 
-                        className="col-span-1 px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl"
-                        value={appFormData.city}
-                        onChange={e => setAppFormData({...appFormData, city: e.target.value})}
-                      />
-                      <input 
-                        required
-                        type="text" 
-                        placeholder="State" 
-                        className="col-span-1 px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl"
-                        value={appFormData.state}
-                        onChange={e => setAppFormData({...appFormData, state: e.target.value})}
-                      />
-                      <input 
-                        required
-                        type="text" 
-                        placeholder="Zip" 
-                        className="col-span-1 px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl"
-                        value={appFormData.zip}
-                        onChange={e => setAppFormData({...appFormData, zip: e.target.value})}
-                      />
-                    </div>
-                    <div className="flex items-center gap-4 px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl">
-                      <span className="text-sm font-bold text-slate-600">Other Pets?</span>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input 
-                            type="radio" 
-                            name="otherPets" 
-                            checked={appFormData.hasOtherPets === true}
-                            onChange={() => setAppFormData({...appFormData, hasOtherPets: true})}
-                            className="w-4 h-4 text-purple-600"
-                          />
-                          <span className="text-sm">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input 
-                            type="radio" 
-                            name="otherPets" 
-                            checked={appFormData.hasOtherPets === false}
-                            onChange={() => setAppFormData({...appFormData, hasOtherPets: false})}
-                            className="w-4 h-4 text-purple-600"
-                          />
-                          <span className="text-sm">No</span>
-                        </label>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Full Name</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="Your Full Name" 
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                          value={appFormData.applicantName}
+                          onChange={e => setAppFormData({...appFormData, applicantName: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Address</label>
+                        <input 
+                          required
+                          type="email" 
+                          placeholder="Email Address" 
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                          value={appFormData.applicantEmail}
+                          onChange={e => setAppFormData({...appFormData, applicantEmail: e.target.value})}
+                        />
                       </div>
                     </div>
-                    <select 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl"
-                      value={appFormData.fosterDuration}
-                      onChange={e => setAppFormData({...appFormData, fosterDuration: e.target.value})}
-                    >
-                      <option value="Short-term (1-2 weeks)">Short-term (1-2 weeks)</option>
-                      <option value="Medium-term (1-2 months)">Medium-term (1-2 months)</option>
-                      <option value="Foster-to-adopt">Foster-to-adopt</option>
-                      <option value="Until adopted">Until adopted</option>
-                    </select>
-                    <textarea 
-                      required
-                      placeholder="Briefly describe your experience with pets..." 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl h-24 focus:ring-2 ring-purple-100"
-                      value={appFormData.experience}
-                      onChange={e => setAppFormData({...appFormData, experience: e.target.value})}
-                    ></textarea>
-                    <button 
-                      type="submit" 
-                      disabled={appStatus === 'submitting'}
-                      className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all disabled:opacity-50"
-                    >
-                      {appStatus === 'submitting' ? 'Submitting...' : 'Submit Foster Application'}
-                    </button>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Home Address</label>
+                      <input 
+                        required
+                        type="text" 
+                        placeholder="Street Address" 
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                        value={appFormData.address}
+                        onChange={e => setAppFormData({...appFormData, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">City</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="City" 
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                          value={appFormData.city}
+                          onChange={e => setAppFormData({...appFormData, city: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">State</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="State" 
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                          value={appFormData.state}
+                          onChange={e => setAppFormData({...appFormData, state: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Zip Code</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="Zip" 
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all"
+                          value={appFormData.zip}
+                          onChange={e => setAppFormData({...appFormData, zip: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-slate-50 rounded-[2rem] border border-slate-200">
+                      <RadioGroup 
+                        label="Other Pets?" 
+                        name="otherPets" 
+                        value={appFormData.hasOtherPets} 
+                        onChange={(val) => setAppFormData({...appFormData, hasOtherPets: val})} 
+                      />
+                      <RadioGroup 
+                        label="Can Isolate?" 
+                        name="canIsolate" 
+                        value={appFormData.canIsolate} 
+                        onChange={(val) => setAppFormData({...appFormData, canIsolate: val})} 
+                      />
+                      <RadioGroup 
+                        label="Can Transport?" 
+                        name="canTransport" 
+                        value={appFormData.canTransport} 
+                        onChange={(val) => setAppFormData({...appFormData, canTransport: val})} 
+                      />
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className="text-sm font-bold text-slate-700 uppercase tracking-wider block">Animal Preferences</label>
+                      <div className="flex flex-wrap gap-4">
+                        {['Dogs', 'Cats', 'Puppies', 'Kittens', 'Senior Animals', 'Special Needs'].map(pref => (
+                          <label key={pref} className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 cursor-pointer transition-all ${appFormData.preferences.includes(pref) ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-100' : 'bg-white border-slate-200 text-slate-600 hover:border-purple-200'}`}>
+                            <input 
+                              type="checkbox" 
+                              className="hidden"
+                              checked={appFormData.preferences.includes(pref)}
+                              onChange={() => handlePreferenceChange(pref)}
+                            />
+                            <span className="font-bold">{pref}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Length of Foster</label>
+                      <select 
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 ring-purple-100 transition-all appearance-none font-bold text-slate-700"
+                        value={appFormData.fosterDuration}
+                        onChange={e => setAppFormData({...appFormData, fosterDuration: e.target.value})}
+                      >
+                        <option value="Short-term (1-2 weeks)">Short-term (1-2 weeks)</option>
+                        <option value="Medium-term (3-5 weeks)">Medium-term (3-5 weeks)</option>
+                        <option value="Foster-to-adopt (Trial period)">Foster-to-adopt (Trial period)</option>
+                        <option value="Until adopted (Indefinite)">Until adopted (Indefinite)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Experience & Description</label>
+                      <textarea 
+                        required
+                        placeholder="Briefly describe your experience with pets and why you'd like to foster..." 
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl h-40 focus:ring-4 ring-purple-100 transition-all"
+                        value={appFormData.experience}
+                        onChange={e => setAppFormData({...appFormData, experience: e.target.value})}
+                      ></textarea>
+                    </div>
+
+                    <div className="flex gap-4 pt-8">
+                      <button 
+                        type="button"
+                        onClick={() => setIsApplying(false)}
+                        className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={appStatus === 'submitting'}
+                        className="flex-[2] py-5 bg-purple-600 text-white rounded-2xl font-bold shadow-2xl shadow-purple-100 hover:bg-purple-700 transition-all disabled:opacity-50"
+                      >
+                        {appStatus === 'submitting' ? 'Submitting...' : 'Submit Foster Application'}
+                      </button>
+                    </div>
                   </form>
                 )}
               </div>

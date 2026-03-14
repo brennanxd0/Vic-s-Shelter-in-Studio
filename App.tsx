@@ -16,7 +16,7 @@ import { auth, isFirebaseConfigured } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './lib/firebase';
-import { fetchAnimals, fetchApplications, getUserProfile, createUserProfile } from './services/firebaseService';
+import { fetchAnimals, fetchApplications, getUserProfile, syncUserProfile } from './services/firebaseService';
 import { User as AppUser, Animal, AdoptionApplication } from './types';
 
 const App: React.FC = () => {
@@ -55,23 +55,9 @@ const App: React.FC = () => {
       setUser(currentUser);
       
       if (currentUser) {
-        // Initial profile fetch
+        // Initial profile fetch and sync (Secure RBAC)
         try {
-          let profile = await getUserProfile(currentUser.uid);
-          
-          // Auto-promote specific user to admin for setup
-          if (currentUser.email === 'brennanxd0@gmail.com') {
-            if (!profile || profile.role !== 'admin') {
-              const adminData = {
-                name: currentUser.displayName || 'Admin Setup',
-                email: currentUser.email,
-                role: 'admin' as const
-              };
-              await createUserProfile(currentUser.uid, adminData);
-              profile = { id: currentUser.uid, ...adminData, createdAt: new Date().toISOString() };
-            }
-          }
-          
+          const profile = await syncUserProfile();
           setUserProfile(profile);
 
           // Listen for real-time profile updates

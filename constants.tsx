@@ -19,7 +19,7 @@ export const MOCK_ANIMALS: Animal[] = [
     breed: 'Golden Retriever Mix',
     age: '2 years',
     gender: 'Female',
-    description: 'Luna is a high-energy sweetheart who loves water and long hikes. She is great with children and other dogs.',
+    description: 'Luna is a friendly 2-year-old Golden Retriever Mix who is always ready for an adventure! She has a playful attitude and absolutely loves splashing in water or cuddling after a long hike. Luna is spayed, fully vaccinated, microchipped, and ready to bring joy to her forever home.',
     image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=800',
     tags: ['Active', 'Kid-friendly', 'Water-lover']
   },
@@ -30,7 +30,7 @@ export const MOCK_ANIMALS: Animal[] = [
     breed: 'Domestic Shorthair',
     age: '5 years',
     gender: 'Male',
-    description: 'Oliver is a distinguished gentleman who prefers quiet afternoons by the window. He loves chin scratches.',
+    description: 'Oliver is a calm and affectionate 5-year-old Domestic Shorthair who is a true distinguished gentleman. He enjoys quiet afternoons by the window and loves nothing more than gentle chin scratches and cozy naps. Oliver is neutered, vaccinated, microchipped, and looking for a peaceful home.',
     image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
     tags: ['Quiet', 'Calm', 'Affectionate']
   },
@@ -41,7 +41,7 @@ export const MOCK_ANIMALS: Animal[] = [
     breed: 'Beagle',
     age: '8 months',
     gender: 'Female',
-    description: 'Bella is a curious puppy with a loud bark and an even bigger heart. She needs an owner with patience for training.',
+    description: 'Bella is a curious 8-month-old Beagle puppy with a big heart and a very playful spirit! She loves exploring new scents and playing with her favorite squeaky toys. Bella is spayed, vaccinated, microchipped, and eager to find a family that will continue her training with love.',
     image: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800',
     tags: ['Puppy', 'Needs Training', 'Curious']
   },
@@ -52,7 +52,7 @@ export const MOCK_ANIMALS: Animal[] = [
     breed: 'Siamese Mix',
     age: '1 year',
     gender: 'Male',
-    description: 'Milo is a vocal and social cat who loves to follow his humans around the house. He enjoys interactive play.',
+    description: 'Milo is a social and vocal 1-year-old Siamese Mix who loves being the center of attention! He is incredibly friendly and will follow you around just to get some extra play time or cuddles. Milo is neutered, vaccinated, microchipped, and ready to be your most loyal companion.',
     image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=800',
     tags: ['Vocal', 'Social', 'Playful']
   }

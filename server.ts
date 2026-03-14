@@ -4,7 +4,7 @@ import { adminAuth, adminDb } from "./lib/firebase-admin";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   // Request logger for debugging
   app.use((req, res, next) => {
@@ -115,6 +115,57 @@ async function startServer() {
     } catch (error: any) {
       console.error("Error seeding database:", error);
       res.status(500).json({ error: error.message || "Internal server error during seeding" });
+    }
+  });
+
+  // Sync user profile and set custom claims (Secure RBAC initialization)
+  app.post("/api/auth/sync-profile", async (req, res) => {
+    const idToken = req.headers.authorization?.split("Bearer ")[1];
+    if (!idToken) return res.status(401).json({ error: "Missing token" });
+
+    try {
+      const decodedToken = await adminAuth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+      const email = decodedToken.email;
+      const name = decodedToken.name || email?.split('@')[0] || 'User';
+
+      const userRef = adminDb().collection("users").doc(uid);
+      const userDoc = await userRef.get();
+
+      let role = "basicUser";
+      
+      // Auto-promote admin emails
+      const adminEmails = ['brennanxd0@gmail.com', 'brennan.xd0@gmail.com'];
+      if (email && adminEmails.includes(email)) {
+        role = "admin";
+      }
+
+      if (!userDoc.exists) {
+        // Create new profile
+        const newUser = {
+          name,
+          email,
+          role,
+          createdAt: new Date().toISOString()
+        };
+        await userRef.set(newUser);
+      } else {
+        // Update existing profile if role needs to be set (e.g. first time login for existing auth user)
+        const existingData = userDoc.data();
+        if (!existingData?.role) {
+          await userRef.update({ role });
+        } else {
+          role = existingData.role;
+        }
+      }
+
+      // Set custom claims for RBAC
+      await adminAuth().setCustomUserClaims(uid, { role });
+
+      res.json({ id: uid, role, name, email });
+    } catch (error) {
+      console.error("Error syncing profile:", error);
+      res.status(500).json({ error: "Failed to sync profile" });
     }
   });
 
