@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { adminAuth, adminDb } from "./lib/firebase-admin";
+import { adminAuth, adminDb } from "./lib/firebase-admin.ts";
 
 async function startServer() {
   const app = express();
@@ -235,7 +235,7 @@ async function startServer() {
   } else {
     // In production, serve static files from dist
     app.use(express.static("dist"));
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
       res.sendFile("dist/index.html", { root: "." });
     });
   }

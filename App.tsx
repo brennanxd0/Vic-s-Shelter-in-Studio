@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import Layout from './components/Layout';
 import Home from './pages/Home';
@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileListener, setProfileListener] = useState<(() => void) | null>(null);
 
   useEffect(() => {
@@ -55,10 +56,12 @@ const App: React.FC = () => {
       setUser(currentUser);
       
       if (currentUser) {
+        setLoadingProfile(true);
         // Initial profile fetch and sync (Secure RBAC)
         try {
           const profile = await syncUserProfile();
           setUserProfile(profile);
+          setLoadingProfile(false);
 
           // Listen for real-time profile updates
           const profileRef = doc(db, 'users', currentUser.uid);
@@ -92,9 +95,11 @@ const App: React.FC = () => {
           setProfileListener(() => unsubscribeProfile);
         } catch (err) {
           console.error("Error setting up user profile:", err);
+          setLoadingProfile(false);
         }
       } else {
         setUserProfile(null);
+        setLoadingProfile(false);
       }
     });
 
@@ -119,12 +124,14 @@ const App: React.FC = () => {
     loadSensitiveData();
   }, [userProfile]);
 
-  if (loading) {
+  if (loading || loadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Connecting to Vic's Shelter...</p>
+          <p className="text-slate-600 font-medium">
+            {loading ? "Connecting to Vic's Shelter..." : "Verifying permissions..."}
+          </p>
         </div>
       </div>
     );
@@ -153,13 +160,7 @@ const App: React.FC = () => {
                 profile={userProfile}
               />
             ) : (
-              <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center">
-                  <h2 className="text-2xl font-black text-slate-900 mb-2">Access Denied</h2>
-                  <p className="text-slate-500 mb-6">You don't have permission to view this page.</p>
-                  <Link to="/" className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold">Return Home</Link>
-                </div>
-              </div>
+              <Navigate to="/" replace />
             )
           } />
         </Routes>

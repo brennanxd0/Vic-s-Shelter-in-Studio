@@ -24,7 +24,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
       console.error("Sign out error:", error);
     }
   };
-  const isActive = (path: string) => location.hash === path || (location.hash === '' && path === '#/');
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -40,13 +40,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1 bg-slate-50 p-1 rounded-2xl border border-slate-100">
-              <Link to="/" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('#/') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Home</Link>
-              <Link to="/adopt" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('#/adopt') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Adopt</Link>
-              <Link to="/foster" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('#/foster') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Foster</Link>
-              <Link to="/volunteer" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('#/volunteer') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Volunteer</Link>
-              <Link to="/donate" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('#/donate') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Donate</Link>
+              <Link to="/" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Home</Link>
+              <Link to="/adopt" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/adopt') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Adopt</Link>
+              <Link to="/foster" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/foster') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Foster</Link>
+              <Link to="/volunteer" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/volunteer') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Volunteer</Link>
+              <Link to="/donate" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/donate') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Donate</Link>
               {(profile?.role === 'admin' || profile?.role === 'staff') && (
-                <Link to="/admin" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${isActive('#/admin') ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
+                <Link to="/admin" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${isActive('/admin') ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
                   <Shield className="w-3.5 h-3.5" /> Admin
                 </Link>
               )}
@@ -58,7 +58,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
                   <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                     <Link 
                       to="/profile" 
-                      className={`p-2 transition-colors rounded-xl border ${isActive('#/profile') ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-400 hover:text-purple-600 border-slate-100'}`}
+                      className={`p-2 transition-colors rounded-xl border ${isActive('/profile') ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-400 hover:text-purple-600 border-slate-100'}`}
                       title="My Dashboard"
                     >
                       <LayoutDashboard className="w-5 h-5" />
@@ -97,16 +97,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-slate-100 p-4 space-y-2 shadow-xl animate-in slide-in-from-top duration-200">
-            <Link onClick={() => setIsMenuOpen(false)} to="/" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Home</Link>
-            <Link onClick={() => setIsMenuOpen(false)} to="/adopt" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/adopt') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Adopt</Link>
-            <Link onClick={() => setIsMenuOpen(false)} to="/foster" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/foster') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Foster</Link>
-            <Link onClick={() => setIsMenuOpen(false)} to="/volunteer" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/volunteer') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Volunteer</Link>
-            <Link onClick={() => setIsMenuOpen(false)} to="/donate" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/donate') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Donate</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Home</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/adopt" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/adopt') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Adopt</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/foster" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/foster') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Foster</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/volunteer" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/volunteer') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Volunteer</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/donate" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/donate') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Donate</Link>
             {user && (
-              <Link onClick={() => setIsMenuOpen(false)} to="/profile" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/profile') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>My Dashboard</Link>
+              <Link onClick={() => setIsMenuOpen(false)} to="/profile" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/profile') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>My Dashboard</Link>
             )}
             {(profile?.role === 'admin' || profile?.role === 'staff') && (
-              <Link onClick={() => setIsMenuOpen(false)} to="/admin" className={`block px-4 py-3 rounded-xl font-bold ${isActive('#/admin') ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Admin Dashboard</Link>
+              <Link onClick={() => setIsMenuOpen(false)} to="/admin" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/admin') ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Admin Dashboard</Link>
             )}
             <div className="pt-4 border-t border-slate-100 mt-4">
               {user ? (

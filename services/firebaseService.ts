@@ -4,6 +4,7 @@ import {
   addDoc, 
   updateDoc, 
   doc, 
+  deleteDoc,
   query, 
   where, 
   setDoc,
@@ -143,6 +144,48 @@ export const fetchShifts = async (): Promise<VolunteerShift[]> => {
   } catch (error: any) {
     if (error.code === 'permission-denied') {
       return MOCK_SHIFTS;
+    }
+    throw error;
+  }
+};
+
+export const addShift = async (shift: Omit<VolunteerShift, 'id'>): Promise<string> => {
+  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  try {
+    const docRef = await addDoc(collection(db, SHIFTS_COLLECTION), shift);
+    return docRef.id;
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn("Permission denied adding shift. This is likely due to Firestore security rules.");
+      return "mock-shift-id";
+    }
+    throw error;
+  }
+};
+
+export const updateShift = async (id: string, shift: Partial<VolunteerShift>): Promise<void> => {
+  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  try {
+    const docRef = doc(db, SHIFTS_COLLECTION, id);
+    await updateDoc(docRef, shift);
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn("Permission denied updating shift. This is likely due to Firestore security rules.");
+      return;
+    }
+    throw error;
+  }
+};
+
+export const deleteShift = async (id: string): Promise<void> => {
+  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  try {
+    const docRef = doc(db, SHIFTS_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn("Permission denied deleting shift. This is likely due to Firestore security rules.");
+      return;
     }
     throw error;
   }

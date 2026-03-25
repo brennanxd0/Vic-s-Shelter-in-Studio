@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication } from '../types.ts';
+import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication, VolunteerShift } from '../types.ts';
 import { 
   updateApplicationStatus, 
   addAnimal, 
@@ -11,7 +11,11 @@ import {
   updateFosterApplicationStatus,
   updateAnimalStatus,
   fetchVolunteerApplications,
-  updateVolunteerApplicationStatus
+  updateVolunteerApplicationStatus,
+  fetchShifts,
+  addShift,
+  updateShift,
+  deleteShift
 } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { toast } from 'sonner';
@@ -30,24 +34,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
   const [users, setUsers] = useState<User[]>([]);
   const [fosterApps, setFosterApps] = useState<FosterApplication[]>([]);
   const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications' | 'foster' | 'history'>('users');
+  const [shifts, setShifts] = useState<VolunteerShift[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'volunteers' | 'inventory' | 'applications' | 'foster' | 'history' | 'shifts'>('users');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isShiftFormOpen, setIsShiftFormOpen] = useState(false);
   const [editingAnimalId, setEditingAnimalId] = useState<string | null>(null);
+  const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
   const [selectedApp, setSelectedApp] = useState<AdoptionApplication | null>(null);
   const [selectedFosterApp, setSelectedFosterApp] = useState<FosterApplication | null>(null);
   const [selectedVolunteerApp, setSelectedVolunteerApp] = useState<VolunteerApplication | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      const [usersData, fosterData, volunteerData] = await Promise.all([
+      const [usersData, fosterData, volunteerData, shiftsData] = await Promise.all([
         fetchUsers(),
         fetchFosterApplications(),
-        fetchVolunteerApplications()
+        fetchVolunteerApplications(),
+        fetchShifts()
       ]);
       setUsers(usersData);
       setFosterApps(fosterData);
       setVolunteerApps(volunteerData);
+      setShifts(shiftsData);
       setLoadingUsers(false);
     };
     loadData();
@@ -62,6 +71,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     gender: 'Female',
     description: '',
     tags: []
+  });
+
+  const [shiftFormData, setShiftFormData] = useState<Partial<VolunteerShift>>({
+    title: '',
+    date: '',
+    time: '',
+    slots: 0
   });
 
   const pendingApps = applications.filter(app => app.status === 'pending');
@@ -250,6 +266,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     }
   };
 
+  const handleSubmitShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingShiftId) {
+        await updateShift(editingShiftId, shiftFormData);
+        setShifts(prev => prev.map(s => s.id === editingShiftId ? { ...s, ...shiftFormData } : s));
+        toast.success("Shift updated successfully.");
+      } else {
+        const newId = await addShift(shiftFormData as Omit<VolunteerShift, 'id'>);
+        setShifts(prev => [{ ...shiftFormData as VolunteerShift, id: newId }, ...prev]);
+        toast.success("Shift added successfully.");
+      }
+      resetShiftForm();
+    } catch (error) {
+      console.error("Error saving shift:", error);
+      toast.error("Failed to save shift.");
+    }
+  };
+
+  const handleDeleteShift = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this shift?")) return;
+    try {
+      await deleteShift(id);
+      setShifts(prev => prev.filter(s => s.id !== id));
+      toast.success("Shift deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting shift:", error);
+      toast.error("Failed to delete shift.");
+    }
+  };
+
+  const startEditingShift = (shift: VolunteerShift) => {
+    setEditingShiftId(shift.id);
+    setShiftFormData({
+      title: shift.title,
+      date: shift.date,
+      time: shift.time,
+      slots: shift.slots
+    });
+    setIsShiftFormOpen(true);
+  };
+
+  const resetShiftForm = () => {
+    setIsShiftFormOpen(false);
+    setEditingShiftId(null);
+    setShiftFormData({ title: '', date: '', time: '', slots: 0 });
+  };
+
   const getRoleBadgeColor = (role: User['role']) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-700 border-purple-200';
@@ -346,6 +410,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
           { id: 'applications', label: 'Adoptions', icon: FileText, count: pendingApps.length },
           { id: 'foster', label: 'Foster Apps', icon: Heart, count: pendingFosterApps.length },
           { id: 'volunteers', label: 'Volunteer Apps', icon: Calendar, count: pendingVolunteerApps.length },
+          { id: 'shifts', label: 'Manage Shifts', icon: Calendar },
           { id: 'history', label: 'History', icon: History },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -837,6 +902,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
         </div>
       )}
 
+      {activeTab === 'shifts' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-black text-slate-900">Volunteer Shifts</h2>
+            <button 
+              onClick={() => setIsShiftFormOpen(true)}
+              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-black shadow-lg shadow-purple-100 hover:bg-purple-700 transition-all flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Add New Shift
+            </button>
+          </div>
+
+          <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Shift Details</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Date & Time</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Slots</th>
+                    <th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {shifts.length > 0 ? (
+                    shifts.map(shift => (
+                      <tr key={shift.id} className="hover:bg-slate-50/30 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="font-bold text-slate-900">{shift.title}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="text-sm text-slate-600 font-medium">{shift.date}</div>
+                          <div className="text-xs text-slate-400">{shift.time}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">
+                            {shift.slots} Slots Available
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => startEditingShift(shift)}
+                              className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteShift(shift.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-8 py-12 text-center text-slate-400 font-bold">No shifts found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Adoption Application Detail Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
@@ -1081,6 +1215,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Shift Form Modal */}
+      {isShiftFormOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
+          <div className="bg-white rounded-[3rem] max-w-lg w-full p-8 md:p-14 relative shadow-2xl">
+            <button 
+              onClick={resetShiftForm}
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+            >
+              <X className="w-6 h-6 text-slate-600" />
+            </button>
+            <h2 className="text-3xl font-black text-slate-900 mb-8 italic">
+              {editingShiftId ? 'Edit Shift' : 'Add New Shift'}
+            </h2>
+            <form onSubmit={handleSubmitShift} className="space-y-6">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Shift Title</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                  placeholder="Morning Dog Walking" 
+                  value={shiftFormData.title}
+                  onChange={e => setShiftFormData({...shiftFormData, title: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Date</label>
+                  <input 
+                    type="date" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                    value={shiftFormData.date}
+                    onChange={e => setShiftFormData({...shiftFormData, date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Time Range</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                    placeholder="8:00 AM - 11:00 AM" 
+                    value={shiftFormData.time}
+                    onChange={e => setShiftFormData({...shiftFormData, time: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Available Slots</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                  value={shiftFormData.slots}
+                  onChange={e => setShiftFormData({...shiftFormData, slots: parseInt(e.target.value)})}
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all"
+              >
+                {editingShiftId ? 'Update Shift' : 'Create Shift'}
+              </button>
+            </form>
           </div>
         </div>
       )}
