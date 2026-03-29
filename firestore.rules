@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Firebase Auth UID)
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - email: string (required, email format)
+    //   - role: string (required, enum: admin, staff, volunteer, basicUser)
+    //   - phoneNumber: string (optional)
+    //   - preferredCommunication: string (optional)
+    //   - createdAt: string (optional, ISO 8601)
+    //
+    // Collection: shifts
+    // Document ID: shiftId
+    // Fields:
+    //   - title: string (required, 1-100 chars)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - time: string (required)
+    //   - slots: number (required, >= 0)
+    //   - description: string (required, 1-1000 chars)
+    //   - claimedBy: list (optional, list of user UIDs)
+    //   - updatedAt: string (optional, ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "brennan.xd0@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isVolunteerOrHigher() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['volunteer', 'staff', 'admin'] ||
+         (request.auth.token.email == "brennan.xd0@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['name', 'email', 'role']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'staff', 'volunteer', 'basicUser'];
+    }
+
+    function isValidShift(data) {
+      return hasRequiredFields(['title', 'date', 'time', 'slots', 'description']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.date is string && data.date.size() > 0 &&
+             data.time is string && data.time.size() > 0 &&
+             data.slots is number && data.slots >= 0 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
+             (!('claimedBy' in data) || data.claimedBy is list) &&
+             (!('updatedAt' in data) || isValidDateString(data.updatedAt)) &&
+             (!('type' in data) || data.type is string);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // PII Protection: Only owner or admin can read full profile
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      
+      // Prevent self-escalation on creation
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    (isOwner(userId) && (request.resource.data.role == 'basicUser' || isAdmin()) || isAdmin());
+      
+      // Prevent self-escalation on update
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    (isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role));
+      
+      allow delete: if isAdmin();
+    }
+
+    match /shifts/{shiftId} {
+      // Only volunteers and staff can see the schedule
+      allow read: if isVolunteerOrHigher();
+      
+      allow create: if isAdmin() && isValidShift(request.resource.data);
+      allow delete: if isAdmin();
+      
+      allow update: if isAuthenticated() && (
+        // Admin can update anything
+        (isAdmin() && isValidShift(request.resource.data)) ||
+        
+        // Volunteer claiming a shift (Atomic Transaction)
+        (
+          isVolunteerOrHigher() &&
+          isValidShift(request.resource.data) &&
+          // Ensure ONLY slots, claimedBy, and updatedAt change
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slots', 'claimedBy', 'updatedAt']) &&
+          // Atomic decrement
+          request.resource.data.slots == resource.data.slots - 1 &&
+          resource.data.slots > 0 &&
+          // Atomic addition to claimedBy
+          request.resource.data.claimedBy.size() == (resource.data.get('claimedBy', []).size() + 1) &&
+          request.resource.data.claimedBy.hasAll(resource.data.get('claimedBy', [])) &&
+          request.auth.uid in request.resource.data.claimedBy &&
+          !(request.auth.uid in resource.data.get('claimedBy', [])) &&
+          // Mandatory timestamp
+          'updatedAt' in request.resource.data
+        )
+      );
+    }
+
+    // Other collections (Animals, Applications, etc.)
+    match /animals/{animalId} {
+      allow read: if true; // Publicly viewable
+      allow write: if isAdmin();
+    }
+
+    match /applications/{appId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAdmin();
+    }
+
+    match /volunteer_applications/{appId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAdmin();
+    }
+
+    match /foster_applications/{appId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

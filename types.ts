@@ -55,7 +55,16 @@ export interface VolunteerApplication {
   userId: string;
   applicantName: string;
   applicantEmail: string;
+  phoneNumber: string;
+  availability: string[];
+  availabilityTimes: string;
+  skills: string;
   reason: string;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
 }
@@ -67,6 +76,9 @@ export interface VolunteerShift {
   time: string;
   slots: number;
   description: string;
+  claimedBy?: string[];
+  updatedAt?: string;
+  type?: string;
 }
 
 export interface User {

@@ -44,7 +44,7 @@ const App: React.FC = () => {
       }
     };
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = isFirebaseConfigured ? onAuthStateChanged(auth, async (currentUser) => {
       console.log("[DEBUG] Auth state changed:", currentUser?.email || "No user");
       
       // Clean up existing profile listener if any
@@ -101,7 +101,24 @@ const App: React.FC = () => {
         setUserProfile(null);
         setLoadingProfile(false);
       }
-    });
+    }) : () => {};
+
+    // Mock user for preview if Firebase is not configured
+    if (!isFirebaseConfigured) {
+      const mockUser = {
+        uid: 'mock-user-1',
+        email: 'brennan.xd0@gmail.com',
+        displayName: 'Admin Setup'
+      } as FirebaseUser;
+      setUser(mockUser);
+      setUserProfile({
+        id: 'mock-user-1',
+        name: 'Admin Setup',
+        email: 'brennan.xd0@gmail.com',
+        role: 'admin'
+      });
+      setLoadingProfile(false);
+    }
 
     initApp();
     return () => {

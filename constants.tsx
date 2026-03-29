@@ -128,7 +128,8 @@ export const MOCK_SHIFTS: VolunteerShift[] = [
     date: '2026-05-20',
     time: '08:00 AM - 11:00 AM',
     slots: 2,
-    description: 'Help our small staff prepare breakfast and clean the kennels.'
+    description: 'Help our small staff prepare breakfast and clean the kennels.',
+    type: 'volunteer'
   },
   {
     id: 's2',
@@ -136,7 +137,8 @@ export const MOCK_SHIFTS: VolunteerShift[] = [
     date: '2026-05-20',
     time: '02:00 PM - 04:00 PM',
     slots: 1,
-    description: 'Take one of our senior dogs for a gentle stroll down the country road.'
+    description: 'Take one of our senior dogs for a gentle stroll down the country road.',
+    type: 'volunteer'
   },
   {
     id: 's3',
@@ -144,6 +146,7 @@ export const MOCK_SHIFTS: VolunteerShift[] = [
     date: '2026-05-21',
     time: '10:00 AM - 12:00 PM',
     slots: 2,
-    description: 'Sit in the cat room and help our shy feline residents get used to visitors.'
+    description: 'Sit in the cat room and help our shy feline residents get used to visitors.',
+    type: 'volunteer'
   }
 ];

@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "VolunteerShift": {
+      "title": "Volunteer Shift",
+      "description": "A scheduled volunteer shift at the animal shelter.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "slots": { "type": "integer" },
+        "description": { "type": "string" },
+        "claimedBy": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string" }
+      },
+      "required": ["title", "date", "time", "slots", "description"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the animal shelter application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "preferredCommunication": { "type": "string", "enum": ["email", "phone"] },
+        "role": { "type": "string", "enum": ["admin", "staff", "volunteer", "basicUser"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/shifts/{shiftId}": {
+      "schema": "VolunteerShift",
+      "description": "Collection of volunteer shifts."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    }
+  }
+}

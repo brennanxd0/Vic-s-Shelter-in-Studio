@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication, VolunteerShift } from '../types.ts';
+import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication, VolunteerShift } from '../types';
 import { 
   updateApplicationStatus, 
   addAnimal, 
@@ -77,7 +77,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     title: '',
     date: '',
     time: '',
-    slots: 0
+    slots: 0,
+    type: 'volunteer'
   });
 
   const pendingApps = applications.filter(app => app.status === 'pending');
@@ -303,7 +304,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       title: shift.title,
       date: shift.date,
       time: shift.time,
-      slots: shift.slots
+      slots: shift.slots,
+      type: shift.type
     });
     setIsShiftFormOpen(true);
   };
@@ -1175,6 +1177,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Contact</h4>
                     <p className="text-slate-900 font-bold">{selectedVolunteerApp.applicantEmail}</p>
                   </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Phone Number</h4>
+                    <p className="text-slate-900 font-bold">{selectedVolunteerApp.phoneNumber || "Not provided"}</p>
+                  </div>
                 </div>
 
                 <div className="space-y-6">
@@ -1188,14 +1194,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                       {selectedVolunteerApp.status}
                     </span>
                   </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Availability</h4>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedVolunteerApp.availability && selectedVolunteerApp.availability.length > 0 ? (
+                        selectedVolunteerApp.availability.map(day => (
+                          <span key={day} className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-bold rounded-md border border-purple-100">
+                            {day}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-slate-400 text-xs italic">No days selected</p>
+                      )}
+                    </div>
+                    {selectedVolunteerApp.availabilityTimes && (
+                      <p className="mt-2 text-slate-600 text-xs font-medium">
+                        <span className="text-slate-400 uppercase text-[9px] font-black mr-1">Times:</span>
+                        {selectedVolunteerApp.availabilityTimes}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 mb-10">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Motivation Statement</h4>
-                <p className="text-slate-700 leading-relaxed italic text-sm">
-                  "{selectedVolunteerApp.reason || "No motivation statement provided."}"
-                </p>
+              <div className="space-y-8 mb-10">
+                <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Motivation Statement</h4>
+                  <p className="text-slate-700 leading-relaxed italic text-sm">
+                    "{selectedVolunteerApp.reason || "No motivation statement provided."}"
+                  </p>
+                </div>
+
+                <div className="bg-purple-50/30 p-8 rounded-[2rem] border border-purple-100/50">
+                  <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Skills & Experience</h4>
+                  <p className="text-slate-700 leading-relaxed text-sm">
+                    {selectedVolunteerApp.skills || "No skills or experience details provided."}
+                  </p>
+                </div>
+
+                {selectedVolunteerApp.emergencyContact && (
+                  <div className="bg-red-50/30 p-8 rounded-[2rem] border border-red-100/50">
+                    <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-4">Emergency Contact</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Name</p>
+                        <p className="text-slate-900 font-bold text-sm">{selectedVolunteerApp.emergencyContact.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Phone</p>
+                        <p className="text-slate-900 font-bold text-sm">{selectedVolunteerApp.emergencyContact.phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Relationship</p>
+                        <p className="text-slate-900 font-bold text-sm">{selectedVolunteerApp.emergencyContact.relationship}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {selectedVolunteerApp.status === 'pending' && (
@@ -1266,16 +1321,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Available Slots</label>
-                <input 
-                  type="number" 
-                  required 
-                  min="1"
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
-                  value={shiftFormData.slots}
-                  onChange={e => setShiftFormData({...shiftFormData, slots: parseInt(e.target.value)})}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Available Slots</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="1"
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                    value={shiftFormData.slots}
+                    onChange={e => setShiftFormData({...shiftFormData, slots: parseInt(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Shift Type</label>
+                  <select 
+                    required
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100"
+                    value={shiftFormData.type}
+                    onChange={e => setShiftFormData({...shiftFormData, type: e.target.value as 'volunteer' | 'staff'})}
+                  >
+                    <option value="volunteer">Volunteer</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                </div>
               </div>
               <button 
                 type="submit" 

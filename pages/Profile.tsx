@@ -6,18 +6,21 @@ import {
   AdoptionApplication, 
   FosterApplication, 
   VolunteerApplication,
-  Animal
+  Animal,
+  VolunteerShift
 } from '../types';
 import { 
   fetchUserAdoptionApplications, 
   fetchUserFosterApplications, 
   fetchUserVolunteerApplications,
+  fetchUserShifts,
   fetchAnimals,
   updateUserProfile
 } from '../services/firebaseService';
 import { LayoutDashboard, Heart, Home, ClipboardList, Clock, CheckCircle2, XCircle, X, History, Mail, Phone } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface ProfileProps {
   user: FirebaseUser | null;
@@ -28,6 +31,7 @@ const Profile: React.FC<ProfileProps> = ({ user, profile }) => {
   const [adoptionApps, setAdoptionApps] = useState<AdoptionApplication[]>([]);
   const [fosterApps, setFosterApps] = useState<FosterApplication[]>([]);
   const [volunteerApps, setVolunteerApps] = useState<VolunteerApplication[]>([]);
+  const [userShifts, setUserShifts] = useState<VolunteerShift[]>([]);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -39,16 +43,18 @@ const Profile: React.FC<ProfileProps> = ({ user, profile }) => {
       
       setLoading(true);
       try {
-        const [adoptions, fosters, volunteers, animalsData] = await Promise.all([
+        const [adoptions, fosters, volunteers, shifts, animalsData] = await Promise.all([
           fetchUserAdoptionApplications(user.uid),
           fetchUserFosterApplications(user.uid),
           fetchUserVolunteerApplications(user.uid),
+          fetchUserShifts(user.uid),
           fetchAnimals()
         ]);
         
         setAdoptionApps(adoptions);
         setFosterApps(fosters);
         setVolunteerApps(volunteers);
+        setUserShifts(shifts);
         setAnimals(animalsData);
       } catch (error) {
         console.error("Error loading profile data:", error);
@@ -214,23 +220,71 @@ const Profile: React.FC<ProfileProps> = ({ user, profile }) => {
           </div>
         </div>
 
-        {/* Applications List */}
+        {/* Applications List & Schedule */}
         <div className="lg:col-span-2 space-y-8">
           {loading ? (
             <div className="py-20 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-slate-400 font-bold uppercase tracking-widest">Loading your applications...</p>
+              <p className="text-slate-400 font-bold uppercase tracking-widest">Loading your data...</p>
             </div>
           ) : (
-            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-12 text-center shadow-xl shadow-slate-100">
-              <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ClipboardList className="w-10 h-10 text-purple-600" />
+            <>
+              {/* Volunteer Schedule */}
+              {(profile?.role === 'volunteer' || profile?.role === 'staff' || profile?.role === 'admin') && (
+                <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-xl shadow-slate-100">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="bg-purple-100 p-2 rounded-xl">
+                      <Clock className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 italic">My Volunteer Schedule</h3>
+                  </div>
+
+                  {userShifts.length > 0 ? (
+                    <div className="space-y-4">
+                      {userShifts.map(shift => (
+                        <div key={shift.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-purple-200 transition-all">
+                          <div className="flex items-center gap-6">
+                            <div className="bg-white w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-slate-500 font-bold border border-slate-100 shadow-sm">
+                              <span className="text-[9px] uppercase opacity-60 tracking-widest">{new Date(shift.date).toLocaleString('default', { month: 'short' })}</span>
+                              <span className="text-xl text-slate-800 leading-none">{new Date(shift.date).getDate()}</span>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-900">{shift.title}</h4>
+                              <p className="text-slate-500 text-xs mt-1 flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-purple-500" />
+                                {shift.time}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="hidden sm:block text-right">
+                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-black uppercase tracking-widest">
+                              Confirmed
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 px-6 border-2 border-dashed border-slate-100 rounded-[2rem]">
+                      <p className="text-slate-400 font-bold text-sm mb-4">You haven't claimed any shifts yet.</p>
+                      <Link to="/volunteer" className="text-purple-600 font-black uppercase text-xs tracking-widest hover:underline">
+                        Browse Available Shifts →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-white border border-slate-100 rounded-[2.5rem] p-12 text-center shadow-xl shadow-slate-100">
+                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ClipboardList className="w-10 h-10 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-4 italic">Welcome to your Dashboard</h3>
+                <p className="text-slate-500 mb-8 max-w-md mx-auto">
+                  Use the button on the left to view your full application history, including adoption, foster, and volunteer requests.
+                </p>
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-4 italic">Welcome to your Dashboard</h3>
-              <p className="text-slate-500 mb-8 max-w-md mx-auto">
-                Use the button on the left to view your full application history, including adoption, foster, and volunteer requests.
-              </p>
-            </div>
+            </>
           )}
         </div>
       </div>

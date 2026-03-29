@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { VolunteerShift, User, VolunteerApplication } from '../types.ts';
-import { fetchShifts, submitVolunteerApplication } from '../services/firebaseService.ts';
+import { fetchShifts, submitVolunteerApplication, claimShift } from '../services/firebaseService.ts';
 import { toast } from 'sonner';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Link } from 'react-router-dom';
@@ -19,7 +19,16 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
   const [regFormData, setRegFormData] = useState({
     applicantName: '',
     applicantEmail: '',
-    reason: ''
+    phoneNumber: '',
+    availability: [] as string[],
+    availabilityTimes: '',
+    skills: '',
+    reason: '',
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relationship: ''
+    }
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,18 +61,63 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
         userId: user.uid,
         applicantName: regFormData.applicantName,
         applicantEmail: regFormData.applicantEmail,
+        phoneNumber: regFormData.phoneNumber,
+        availability: regFormData.availability,
+        availabilityTimes: regFormData.availabilityTimes,
+        skills: regFormData.skills,
         reason: regFormData.reason,
+        emergencyContact: regFormData.emergencyContact,
         status: 'pending',
         submittedAt: new Date().toISOString()
       });
       toast.success("Volunteer application submitted successfully! We'll be in touch.");
       setShowRegForm(false);
-      setRegFormData({ applicantName: '', applicantEmail: '', reason: '' });
+      setRegFormData({ 
+        applicantName: '', 
+        applicantEmail: '', 
+        phoneNumber: '',
+        availability: [],
+        availabilityTimes: '',
+        skills: '',
+        reason: '',
+        emergencyContact: {
+          name: '',
+          phone: '',
+          relationship: ''
+        }
+      });
     } catch (error) {
       console.error("Error submitting volunteer application:", error);
       toast.error("Failed to submit application. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleClaimShift = async (shiftId: string, shiftTitle: string) => {
+    const isVolunteer = profile?.role === 'volunteer' || profile?.role === 'staff' || profile?.role === 'admin';
+    if (!isVolunteer) {
+      toast.error("You must be a registered volunteer to claim shifts.", {
+        description: "Please apply to become a volunteer first."
+      });
+      return;
+    }
+    
+    if (!user) return;
+
+    try {
+      await claimShift(shiftId, user.uid);
+      toast.success(`Shift "${shiftTitle}" claimed! See you there.`);
+      
+      // Optimistically update local state to show decrement immediately
+      setShifts(prevShifts => prevShifts.map(s => 
+        s.id === shiftId 
+          ? { ...s, slots: s.slots - 1, claimedBy: [...(s.claimedBy || []), user.uid] } 
+          : s
+      ));
+    } catch (error: any) {
+      console.error("Error claiming shift:", error);
+      toast.error(error.message || "Failed to claim shift.");
     }
   };
 
@@ -106,7 +160,7 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
           </h2>
           
           <div className="space-y-4 relative">
-            {(!user || (profile?.role === 'basicUser')) && (
+            {(!user || !profile || profile.role === 'basicUser') && (
               <div className="absolute inset-0 z-10 backdrop-blur-[2px] bg-white/30 rounded-[2rem] flex items-center justify-center">
                 <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center max-w-sm mx-4">
                   <div className="bg-slate-100 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -146,7 +200,14 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
                       <span className="text-2xl text-slate-800 leading-none">{new Date(shift.date).getDate()}</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">{shift.title}</h3>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        {shift.title}
+                        {shift.claimedBy?.includes(user?.uid || '') && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-200">
+                            <ShieldCheck className="w-3 h-3" /> My Shift
+                          </span>
+                        )}
+                      </h3>
                       <div className="flex items-center text-sm text-slate-500 mt-1">
                          <svg className="w-4 h-4 mr-1 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                          {shift.time}
@@ -159,10 +220,17 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
                         <div className="text-slate-900 font-bold">{shift.slots} Slots</div>
                      </div>
                       <button 
-                        onClick={() => toast.success(`Shift "${shift.title}" claimed! See you there.`)}
-                        className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-slate-100"
+                        onClick={() => handleClaimShift(shift.id, shift.title)}
+                        disabled={shift.claimedBy?.includes(user?.uid || '') || shift.slots <= 0}
+                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-slate-100 ${
+                          shift.claimedBy?.includes(user?.uid || '')
+                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default'
+                            : shift.slots <= 0
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                              : 'bg-slate-900 text-white hover:bg-purple-700'
+                        }`}
                       >
-                        Claim
+                        {shift.claimedBy?.includes(user?.uid || '') ? 'Claimed' : shift.slots <= 0 ? 'Full' : 'Claim'}
                       </button>
                   </div>
                 </div>
@@ -227,25 +295,38 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
       {/* Registration Modal */}
       {showRegForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-          <div className="bg-white rounded-[3rem] max-w-lg w-full p-8 md:p-14 relative shadow-2xl">
+          <div className="bg-white rounded-[3rem] max-w-lg w-full p-8 md:p-14 relative shadow-2xl max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => setShowRegForm(false)}
-              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+              className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10"
             >
               <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <h2 className="text-3xl font-black text-slate-900 mb-8 italic">Join the Team</h2>
             <form onSubmit={handleRegister} className="space-y-6">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
-                  placeholder="John Doe" 
-                  value={regFormData.applicantName}
-                  onChange={e => setRegFormData({...regFormData, applicantName: e.target.value})}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                    placeholder="John Doe" 
+                    value={regFormData.applicantName}
+                    onChange={e => setRegFormData({...regFormData, applicantName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Phone Number</label>
+                  <input 
+                    type="tel" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                    placeholder="(555) 000-0000" 
+                    value={regFormData.phoneNumber}
+                    onChange={e => setRegFormData({...regFormData, phoneNumber: e.target.value})}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Email Address</label>
@@ -258,15 +339,107 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
                   onChange={e => setRegFormData({...regFormData, applicantEmail: e.target.value})}
                 />
               </div>
+              
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Availability (Select Days)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                    <label key={day} className="flex items-center space-x-2 cursor-pointer group">
+                      <input 
+                        type="checkbox"
+                        className="w-5 h-5 rounded border-slate-200 text-purple-600 focus:ring-purple-500"
+                        checked={regFormData.availability.includes(day)}
+                        onChange={(e) => {
+                          const newAvailability = e.target.checked 
+                            ? [...regFormData.availability, day]
+                            : regFormData.availability.filter(d => d !== day);
+                          setRegFormData({...regFormData, availability: newAvailability});
+                        }}
+                      />
+                      <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{day}</span>
+                    </label>
+                  ))}
+                </div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Specific Times Available</label>
+                <input 
+                  type="text" 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                  placeholder="e.g. 9am - 12pm, or Evenings after 5pm" 
+                  value={regFormData.availabilityTimes}
+                  onChange={e => setRegFormData({...regFormData, availabilityTimes: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Skills & Experience</label>
+                <textarea 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-24" 
+                  placeholder="Dog walking, grooming, admin work, etc..."
+                  value={regFormData.skills}
+                  onChange={e => setRegFormData({...regFormData, skills: e.target.value})}
+                ></textarea>
+              </div>
+
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Why Volunteer at Vic's?</label>
                 <textarea 
                   required 
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-32" 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-24" 
                   placeholder="Tell us about your love for animals..."
                   value={regFormData.reason}
                   onChange={e => setRegFormData({...regFormData, reason: e.target.value})}
                 ></textarea>
+              </div>
+
+              <div className="pt-6 border-t border-slate-100">
+                <h3 className="text-lg font-black text-slate-900 mb-6 italic">Emergency Contact</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Full Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                      placeholder="Emergency Contact Name" 
+                      value={regFormData.emergencyContact.name}
+                      onChange={e => setRegFormData({
+                        ...regFormData, 
+                        emergencyContact: { ...regFormData.emergencyContact, name: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Phone Number</label>
+                      <input 
+                        type="tel" 
+                        required 
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                        placeholder="(555) 000-0000" 
+                        value={regFormData.emergencyContact.phone}
+                        onChange={e => setRegFormData({
+                          ...regFormData, 
+                          emergencyContact: { ...regFormData.emergencyContact, phone: e.target.value }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Relationship</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100" 
+                        placeholder="e.g. Parent, Spouse, Friend" 
+                        value={regFormData.emergencyContact.relationship}
+                        onChange={e => setRegFormData({
+                          ...regFormData, 
+                          emergencyContact: { ...regFormData.emergencyContact, relationship: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <button 
                 type="submit" 

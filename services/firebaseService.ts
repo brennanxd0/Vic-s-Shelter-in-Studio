@@ -8,7 +8,8 @@ import {
   query, 
   where, 
   setDoc,
-  getDoc
+  getDoc,
+  runTransaction
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { isFirebaseConfigured } from '../lib/firebase';
@@ -132,25 +133,31 @@ export const fetchApplications = async (): Promise<AdoptionApplication[]> => {
   }
 };
 
+let MOCK_SHIFTS_STATE: VolunteerShift[] = [...MOCK_SHIFTS];
+
 export const fetchShifts = async (): Promise<VolunteerShift[]> => {
-  if (!isFirebaseConfigured) return MOCK_SHIFTS;
+  if (!isFirebaseConfigured) return MOCK_SHIFTS_STATE;
   try {
     const querySnapshot = await getDocs(collection(db, SHIFTS_COLLECTION));
     const shifts: VolunteerShift[] = [];
     querySnapshot.forEach((doc) => {
       shifts.push({ id: doc.id, ...doc.data() } as VolunteerShift);
     });
-    return shifts.length > 0 ? shifts : MOCK_SHIFTS;
+    return shifts.length > 0 ? shifts : MOCK_SHIFTS_STATE;
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      return MOCK_SHIFTS;
+      return MOCK_SHIFTS_STATE;
     }
     throw error;
   }
 };
 
 export const addShift = async (shift: Omit<VolunteerShift, 'id'>): Promise<string> => {
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  if (!isFirebaseConfigured) {
+    const newShift = { ...shift, id: `mock-shift-${Date.now()}` };
+    MOCK_SHIFTS_STATE.push(newShift);
+    return newShift.id;
+  }
   try {
     const docRef = await addDoc(collection(db, SHIFTS_COLLECTION), shift);
     return docRef.id;
@@ -164,7 +171,10 @@ export const addShift = async (shift: Omit<VolunteerShift, 'id'>): Promise<strin
 };
 
 export const updateShift = async (id: string, shift: Partial<VolunteerShift>): Promise<void> => {
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  if (!isFirebaseConfigured) {
+    MOCK_SHIFTS_STATE = MOCK_SHIFTS_STATE.map(s => s.id === id ? { ...s, ...shift } : s);
+    return;
+  }
   try {
     const docRef = doc(db, SHIFTS_COLLECTION, id);
     await updateDoc(docRef, shift);
@@ -178,7 +188,10 @@ export const updateShift = async (id: string, shift: Partial<VolunteerShift>): P
 };
 
 export const deleteShift = async (id: string): Promise<void> => {
-  if (!isFirebaseConfigured) throw new Error("Firebase not configured");
+  if (!isFirebaseConfigured) {
+    MOCK_SHIFTS_STATE = MOCK_SHIFTS_STATE.filter(s => s.id !== id);
+    return;
+  }
   try {
     const docRef = doc(db, SHIFTS_COLLECTION, id);
     await deleteDoc(docRef);
@@ -439,6 +452,82 @@ export const fetchUserFosterApplications = async (userId: string): Promise<Foste
       return [];
     }
     console.error("Error fetching user foster applications:", error);
+    return [];
+  }
+};
+
+export const claimShift = async (shiftId: string, userId: string): Promise<void> => {
+  if (!isFirebaseConfigured) {
+    const shift = MOCK_SHIFTS_STATE.find(s => s.id === shiftId);
+    if (!shift) throw new Error("Shift not found");
+    
+    const currentClaimedBy = shift.claimedBy || [];
+    if (currentClaimedBy.includes(userId)) {
+      throw new Error("You have already claimed this shift");
+    }
+    
+    if (shift.slots <= 0) {
+      throw new Error("No slots available for this shift");
+    }
+    
+    MOCK_SHIFTS_STATE = MOCK_SHIFTS_STATE.map(s => 
+      s.id === shiftId 
+        ? { ...s, claimedBy: [...currentClaimedBy, userId], slots: s.slots - 1 } 
+        : s
+    );
+    return;
+  }
+  try {
+    const docRef = doc(db, SHIFTS_COLLECTION, shiftId);
+    
+    await runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(docRef);
+      if (!docSnap.exists()) throw new Error("Shift not found");
+      
+      const shiftData = docSnap.data() as VolunteerShift;
+      const currentClaimedBy = shiftData.claimedBy || [];
+      
+      if (currentClaimedBy.includes(userId)) {
+        throw new Error("You have already claimed this shift");
+      }
+      
+      if (shiftData.slots <= 0) {
+        throw new Error("No slots available for this shift");
+      }
+      
+      transaction.update(docRef, {
+        claimedBy: [...currentClaimedBy, userId],
+        slots: shiftData.slots - 1,
+        updatedAt: new Date().toISOString()
+      });
+    });
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn("Permission denied claiming shift. This is likely due to Firestore security rules.");
+      return;
+    }
+    throw error;
+  }
+};
+
+export const fetchUserShifts = async (userId: string): Promise<VolunteerShift[]> => {
+  if (!isFirebaseConfigured) {
+    return MOCK_SHIFTS_STATE.filter(s => s.claimedBy?.includes(userId));
+  }
+  try {
+    const q = query(collection(db, SHIFTS_COLLECTION), where("claimedBy", "array-contains", userId));
+    const querySnapshot = await getDocs(q);
+    const shifts: VolunteerShift[] = [];
+    querySnapshot.forEach((doc) => {
+      shifts.push({ id: doc.id, ...doc.data() } as VolunteerShift);
+    });
+    return shifts;
+  } catch (error: any) {
+    if (error.code === 'permission-denied') {
+      console.warn("Permission denied fetching user shifts. This is likely due to Firestore security rules.");
+      return MOCK_SHIFTS_STATE.filter(s => s.claimedBy?.includes(userId));
+    }
+    console.error("Error fetching user shifts:", error);
     return [];
   }
 };

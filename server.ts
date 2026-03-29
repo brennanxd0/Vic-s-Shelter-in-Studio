@@ -6,16 +6,6 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
-  // Request logger for debugging
-  app.use((req, res, next) => {
-    const start = Date.now();
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      console.log(`[DEBUG] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
-    });
-    next();
-  });
-
   app.use(express.json());
 
   // API routes
@@ -135,7 +125,7 @@ async function startServer() {
       let role = "basicUser";
       
       // Auto-promote admin emails
-      const adminEmails = ['brennanxd0@gmail.com', 'brennan.xd0@gmail.com'];
+      const adminEmails = ['brennanxd0@gmail.com', 'brennan.xd0@gmail.com', 'vicsshelter@gmail.com'];
       if (email && adminEmails.includes(email)) {
         role = "admin";
       }
