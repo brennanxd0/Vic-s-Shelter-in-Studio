@@ -44,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
               <Link to="/adopt" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/adopt') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Adopt</Link>
               <Link to="/foster" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/foster') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Foster</Link>
               <Link to="/volunteer" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/volunteer') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Volunteer</Link>
+              <Link to="/events" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/events') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Events</Link>
               <Link to="/donate" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${isActive('/donate') ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Donate</Link>
               {(profile?.role === 'admin' || profile?.role === 'staff') && (
                 <Link to="/admin" className={`px-4 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${isActive('/admin') ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -101,6 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
             <Link onClick={() => setIsMenuOpen(false)} to="/adopt" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/adopt') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Adopt</Link>
             <Link onClick={() => setIsMenuOpen(false)} to="/foster" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/foster') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Foster</Link>
             <Link onClick={() => setIsMenuOpen(false)} to="/volunteer" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/volunteer') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Volunteer</Link>
+            <Link onClick={() => setIsMenuOpen(false)} to="/events" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/events') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Events</Link>
             <Link onClick={() => setIsMenuOpen(false)} to="/donate" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/donate') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>Donate</Link>
             {user && (
               <Link onClick={() => setIsMenuOpen(false)} to="/profile" className={`block px-4 py-3 rounded-xl font-bold ${isActive('/profile') ? 'bg-purple-50 text-purple-600' : 'text-slate-600'}`}>My Dashboard</Link>
@@ -144,6 +146,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
               <li><Link to="/adopt" className="hover:text-purple-400 transition-colors">Adoption Process</Link></li>
               <li><Link to="/foster" className="hover:text-purple-400 transition-colors">Foster Program</Link></li>
               <li><Link to="/volunteer" className="hover:text-purple-400 transition-colors">Volunteer Opportunities</Link></li>
+              <li><Link to="/events" className="hover:text-purple-400 transition-colors">Shelter Events</Link></li>
               <li><Link to="/donate" className="hover:text-purple-400 transition-colors">Monthly Giving</Link></li>
             </ul>
           </div>

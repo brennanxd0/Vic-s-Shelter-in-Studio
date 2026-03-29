@@ -81,6 +81,17 @@ export interface VolunteerShift {
   type?: string;
 }
 
+export interface ShelterEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  type: 'adoption' | 'fundraiser' | 'workshop' | 'other';
+  image?: string;
+}
+
 export interface User {
   id: string;
   name: string;

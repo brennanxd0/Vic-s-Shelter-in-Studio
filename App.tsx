@@ -11,6 +11,7 @@ import Auth from './pages/Auth';
 import Register from './pages/Register';
 import Foster from './pages/Foster';
 import Profile from './pages/Profile';
+import Events from './pages/Events';
 import AdminDashboard from './pages/AdminDashboard';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
@@ -167,6 +168,7 @@ const App: React.FC = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile user={user} profile={userProfile} />} />
+          <Route path="/events" element={<Events user={user} />} />
           <Route path="/admin" element={
             (userProfile?.role === 'admin' || userProfile?.role === 'staff') ? (
               <AdminDashboard 

@@ -152,6 +152,49 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2">
+          {/* Onboarding Section */}
+          <div className="bg-white border border-slate-100 rounded-[3rem] p-10 shadow-2xl shadow-purple-50 mb-12">
+            <h2 className="text-2xl font-black text-slate-900 mb-6 leading-tight">New to Vic's?</h2>
+            <p className="text-slate-500 mb-8 leading-relaxed">Before you can sign up for shifts, you need to complete our orientation program.</p>
+            
+            <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              <li className="flex items-start">
+                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">1</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">Register Online</h4>
+                  <p className="text-xs text-slate-500">Quick and easy onboarding form.</p>
+                </div>
+              </li>
+              <li className="flex items-start">
+                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">2</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">Watch Orientation</h4>
+                  <p className="text-xs text-slate-500">Safety first for you and our pets.</p>
+                </div>
+              </li>
+              <li className="flex items-start">
+                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">3</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">First Shift</h4>
+                  <p className="text-xs text-slate-500">Book your shadow shift today.</p>
+                </div>
+              </li>
+            </ul>
+
+            <button 
+              onClick={() => {
+                if (!user) {
+                  toast.error("Please sign in to start your volunteer application.");
+                  return;
+                }
+                setShowRegForm(true);
+              }}
+              className="w-full md:w-auto px-12 py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all hover:scale-[1.02]"
+            >
+              Start Application
+            </button>
+          </div>
+
           <h2 className="text-2xl font-bold text-slate-900 mb-8 flex items-center">
             <span className="bg-purple-100 p-2 rounded-xl mr-3">
               <svg className="w-6 h-6 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -239,54 +282,14 @@ const Volunteer: React.FC<VolunteerProps> = ({ user, profile }) => {
               <div className="py-12 text-center text-slate-400 font-bold">No shifts currently available.</div>
             )}
           </div>
-          
-          <div className="mt-12 p-8 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center">
-            <h3 className="text-xl font-bold text-slate-700 mb-2">Want a custom schedule?</h3>
-            <p className="text-slate-500 mb-6">If you can't find a shift that fits, let us know and we'll work with you.</p>
-            <button className="text-purple-700 font-black uppercase text-sm tracking-widest hover:underline transition-all">Contact Coordinator →</button>
-          </div>
         </div>
 
         <div>
-          <div className="bg-white border border-slate-100 rounded-[3rem] p-10 shadow-2xl shadow-purple-50 sticky top-24">
-            <h2 className="text-2xl font-black text-slate-900 mb-6 leading-tight">New to Vic's?</h2>
-            <p className="text-slate-500 mb-8 leading-relaxed">Before you can sign up for shifts, you need to complete our orientation program.</p>
-            
-            <ul className="space-y-6 mb-10">
-              <li className="flex items-start">
-                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">1</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Register Online</h4>
-                  <p className="text-xs text-slate-500">Quick and easy onboarding form.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">2</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Watch Orientation</h4>
-                  <p className="text-xs text-slate-500">Safety first for you and our pets.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="bg-purple-100 text-purple-700 w-9 h-9 rounded-xl flex items-center justify-center font-black mr-4 shrink-0 shadow-sm shadow-purple-50">3</div>
-                <div>
-                  <h4 className="font-bold text-slate-800">First Shift</h4>
-                  <p className="text-xs text-slate-500">Book your shadow shift today.</p>
-                </div>
-              </li>
-            </ul>
-
-            <button 
-              onClick={() => {
-                if (!user) {
-                  toast.error("Please sign in to start your volunteer application.");
-                  return;
-                }
-                setShowRegForm(true);
-              }}
-              className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black shadow-xl shadow-purple-100 hover:bg-purple-700 transition-all hover:scale-[1.02]"
-            >
-              Start Application
+          <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] p-10 text-center sticky top-24">
+            <h2 className="text-2xl font-black text-slate-900 mb-4 leading-tight">Want a custom schedule?</h2>
+            <p className="text-slate-500 mb-8 leading-relaxed">If you can't find a shift that fits your availability, we'd love to work with you on a custom plan.</p>
+            <button className="w-full py-4 bg-white border border-slate-200 text-purple-700 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-slate-50 transition-all">
+              Contact Coordinator
             </button>
           </div>
         </div>
