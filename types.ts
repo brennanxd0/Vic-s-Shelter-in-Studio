@@ -99,6 +99,7 @@ export interface User {
   phoneNumber?: string;
   preferredCommunication?: 'email' | 'phone';
   role: 'admin' | 'staff' | 'volunteer' | 'basicUser';
+  shifts?: string[];
   createdAt?: string;
 }
 

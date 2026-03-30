@@ -31,6 +31,11 @@
         "phoneNumber": { "type": "string" },
         "preferredCommunication": { "type": "string", "enum": ["email", "phone"] },
         "role": { "type": "string", "enum": ["admin", "staff", "volunteer", "basicUser"] },
+        "shifts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of shift IDs claimed by the volunteer."
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "email", "role"]

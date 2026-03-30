@@ -15,7 +15,7 @@ import Events from './pages/Events';
 import AdminDashboard from './pages/AdminDashboard';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDocFromServer } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { fetchAnimals, fetchApplications, getUserProfile, syncUserProfile } from './services/firebaseService';
 import { User as AppUser, Animal, AdoptionApplication } from './types';
@@ -36,6 +36,19 @@ const App: React.FC = () => {
         if (isFirebaseConfigured) {
           await signOut(auth);
         }
+
+        // Test connection to Firestore
+        if (isFirebaseConfigured) {
+          try {
+            await getDocFromServer(doc(db, 'test', 'connection'));
+          } catch (error: any) {
+            if (error.message?.includes('the client is offline')) {
+              console.error("Firebase connection test failed: The client is offline. Please check your Firebase configuration.");
+              toast.error("Firebase connection failed. Please check your configuration.");
+            }
+          }
+        }
+
         const animalsData = await fetchAnimals();
         setAnimals(animalsData);
       } catch (error) {

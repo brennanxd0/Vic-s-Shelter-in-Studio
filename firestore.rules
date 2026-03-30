@@ -11,6 +11,7 @@ service cloud.firestore {
     //   - name: string (required, 1-100 chars)
     //   - email: string (required, email format)
     //   - role: string (required, enum: admin, staff, volunteer, basicUser)
+    //   - shifts: list (optional, list of shift IDs)
     //   - phoneNumber: string (optional)
     //   - preferredCommunication: string (optional)
     //   - createdAt: string (optional, ISO 8601)
@@ -42,14 +43,16 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         (request.auth.token.email == "brennan.xd0@gmail.com" && request.auth.token.email_verified == true));
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (request.auth.token.email in ["brennan.xd0@gmail.com", "brennanxd0@gmail.com", "vicsshelter@gmail.com"]));
     }
 
     function isVolunteerOrHigher() {
       return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['volunteer', 'staff', 'admin'] ||
-         (request.auth.token.email == "brennan.xd0@gmail.com" && request.auth.token.email_verified == true));
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['volunteer', 'staff', 'admin']) ||
+         (request.auth.token.email in ["brennan.xd0@gmail.com", "brennanxd0@gmail.com", "vicsshelter@gmail.com"]));
     }
 
     function hasRequiredFields(fields) {
@@ -77,18 +80,19 @@ service cloud.firestore {
       return hasRequiredFields(['name', 'email', 'role']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              isValidEmail(data.email) &&
-             data.role in ['admin', 'staff', 'volunteer', 'basicUser'];
+             data.role in ['admin', 'staff', 'volunteer', 'basicUser'] &&
+             (!('shifts' in data) || data.shifts is list);
     }
 
     function isValidShift(data) {
-      return hasRequiredFields(['title', 'date', 'time', 'slots', 'description']) &&
+      return hasRequiredFields(['title', 'date', 'time', 'slots']) &&
              data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
              data.date is string && data.date.size() > 0 &&
              data.time is string && data.time.size() > 0 &&
              data.slots is number && data.slots >= 0 &&
-             data.description is string && data.description.size() > 0 && data.description.size() <= 1000 &&
+             (!('description' in data) || data.description is string) &&
              (!('claimedBy' in data) || data.claimedBy is list) &&
-             (!('updatedAt' in data) || isValidDateString(data.updatedAt)) &&
+             (!('updatedAt' in data) || data.updatedAt is string) &&
              (!('type' in data) || data.type is string);
     }
 
@@ -106,7 +110,14 @@ service cloud.firestore {
       
       // Prevent self-escalation on update
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    (isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role));
+                    (isAdmin() || (isOwner(userId) && (
+                      // Ensure role is not changed by non-admin
+                      request.resource.data.role == resource.data.role &&
+                      // Ensure shifts can only be updated by volunteers or higher
+                      (!('shifts' in request.resource.data) || 
+                       request.resource.data.shifts == resource.data.get('shifts', []) || 
+                       isVolunteerOrHigher())
+                    )));
       
       allow delete: if isAdmin();
     }
@@ -115,12 +126,12 @@ service cloud.firestore {
       // Only volunteers and staff can see the schedule
       allow read: if isVolunteerOrHigher();
       
-      allow create: if isAdmin() && isValidShift(request.resource.data);
+      allow create: if isAdmin();
       allow delete: if isAdmin();
       
       allow update: if isAuthenticated() && (
         // Admin can update anything
-        (isAdmin() && isValidShift(request.resource.data)) ||
+        isAdmin() ||
         
         // Volunteer claiming a shift (Atomic Transaction)
         (

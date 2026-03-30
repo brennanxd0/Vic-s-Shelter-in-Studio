@@ -80,7 +80,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     date: '',
     time: '',
     slots: 0,
-    type: 'volunteer'
+    type: 'volunteer',
+    description: ''
   });
 
   const pendingApps = applications.filter(app => app.status === 'pending');
@@ -280,13 +281,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
   const handleSubmitShift = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const finalShiftData = {
+        ...shiftFormData,
+        type: shiftFormData.type || 'volunteer',
+        description: shiftFormData.description || ''
+      };
+
+      console.log("Submitting shift data:", {
+        id: editingShiftId,
+        data: finalShiftData,
+        types: {
+          title: typeof finalShiftData.title,
+          date: typeof finalShiftData.date,
+          time: typeof finalShiftData.time,
+          slots: typeof finalShiftData.slots,
+          description: typeof finalShiftData.description,
+          type: typeof finalShiftData.type
+        }
+      });
+
       if (editingShiftId) {
-        await updateShift(editingShiftId, shiftFormData);
-        setShifts(prev => prev.map(s => s.id === editingShiftId ? { ...s, ...shiftFormData } : s));
+        await updateShift(editingShiftId, finalShiftData);
+        setShifts(prev => prev.map(s => s.id === editingShiftId ? { ...s, ...finalShiftData } : s));
         toast.success("Shift updated successfully.");
       } else {
-        const newId = await addShift(shiftFormData as Omit<VolunteerShift, 'id'>);
-        setShifts(prev => [{ ...shiftFormData as VolunteerShift, id: newId }, ...prev]);
+        const newId = await addShift(finalShiftData as Omit<VolunteerShift, 'id'>);
+        setShifts(prev => [{ ...finalShiftData as VolunteerShift, id: newId }, ...prev]);
         toast.success("Shift added successfully.");
       }
       resetShiftForm();
@@ -315,7 +335,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
       date: shift.date,
       time: shift.time,
       slots: shift.slots,
-      type: shift.type
+      type: shift.type || 'volunteer',
+      description: shift.description || ''
     });
     setIsShiftFormOpen(true);
   };
@@ -323,7 +344,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
   const resetShiftForm = () => {
     setIsShiftFormOpen(false);
     setEditingShiftId(null);
-    setShiftFormData({ title: '', date: '', time: '', slots: 0 });
+    setShiftFormData({ title: '', date: '', time: '', slots: 0, type: 'volunteer', description: '' });
   };
 
   const getRoleBadgeColor = (role: User['role']) => {
@@ -1394,6 +1415,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
                     <option value="staff">Staff</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase mb-2 tracking-widest">Description</label>
+                <textarea 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-2 ring-purple-100 h-24" 
+                  placeholder="Help with morning dog walking and kennel cleaning..." 
+                  value={shiftFormData.description}
+                  onChange={e => setShiftFormData({...shiftFormData, description: e.target.value})}
+                ></textarea>
               </div>
               <button 
                 type="submit" 

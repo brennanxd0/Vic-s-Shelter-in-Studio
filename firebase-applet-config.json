@@ -3,7 +3,7 @@
   "appId": "1:985615530737:web:e1585262f3370bf5908750",
   "apiKey": "AIzaSyDryvOQytQDNUUF_7QpM6WbM84YGb9vHG8",
   "authDomain": "vic-capstone-project.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-a42d76bc-3281-418d-b9dc-5edb3d77e6de",
+  "firestoreDatabaseId": "(default)",
   "storageBucket": "vic-capstone-project.firebasestorage.app",
   "messagingSenderId": "985615530737",
   "measurementId": ""

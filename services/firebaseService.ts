@@ -9,7 +9,8 @@ import {
   where, 
   setDoc,
   getDoc,
-  runTransaction
+  runTransaction,
+  getDocFromServer
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { isFirebaseConfigured } from '../lib/firebase';
@@ -22,6 +23,57 @@ const FOSTER_APPLICATIONS_COLLECTION = 'foster_applications';
 const VOLUNTEER_APPLICATIONS_COLLECTION = 'volunteer_applications';
 const USERS_COLLECTION = 'users';
 const SHIFTS_COLLECTION = 'shifts';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 export const syncUserProfile = async (): Promise<User | null> => {
   if (!isFirebaseConfigured) return null;
@@ -76,8 +128,7 @@ export const createUserProfile = async (uid: string, data: Partial<User>): Promi
     }, { merge: true });
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Permission denied creating user profile. This is likely due to Firestore security rules.");
-      return;
+      handleFirestoreError(error, OperationType.WRITE, `${USERS_COLLECTION}/${uid}`);
     }
     console.error("Error creating user profile:", error);
   }
@@ -90,8 +141,7 @@ export const updateUserProfile = async (uid: string, data: Partial<User>): Promi
     await updateDoc(docRef, data);
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Permission denied updating user profile. This is likely due to Firestore security rules.");
-      return;
+      handleFirestoreError(error, OperationType.UPDATE, `${USERS_COLLECTION}/${uid}`);
     }
     throw error;
   }
@@ -154,34 +204,42 @@ export const fetchShifts = async (): Promise<VolunteerShift[]> => {
 
 export const addShift = async (shift: Omit<VolunteerShift, 'id'>): Promise<string> => {
   if (!isFirebaseConfigured) {
-    const newShift = { ...shift, id: `mock-shift-${Date.now()}` };
-    MOCK_SHIFTS_STATE.push(newShift);
+    const newShift = { ...shift, id: `mock-shift-${Date.now()}`, updatedAt: new Date().toISOString() };
+    MOCK_SHIFTS_STATE.push(newShift as any);
     return newShift.id;
   }
   try {
-    const docRef = await addDoc(collection(db, SHIFTS_COLLECTION), shift);
+    const docRef = await addDoc(collection(db, SHIFTS_COLLECTION), {
+      ...shift,
+      updatedAt: new Date().toISOString()
+    });
     return docRef.id;
   } catch (error: any) {
     if (error.code === 'permission-denied') {
-      console.warn("Permission denied adding shift. This is likely due to Firestore security rules.");
-      return "mock-shift-id";
+      handleFirestoreError(error, OperationType.CREATE, SHIFTS_COLLECTION);
     }
     throw error;
   }
 };
 
 export const updateShift = async (id: string, shift: Partial<VolunteerShift>): Promise<void> => {
+  console.log(`Updating shift ${id} with data:`, shift);
   if (!isFirebaseConfigured) {
-    MOCK_SHIFTS_STATE = MOCK_SHIFTS_STATE.map(s => s.id === id ? { ...s, ...shift } : s);
+    MOCK_SHIFTS_STATE = MOCK_SHIFTS_STATE.map(s => s.id === id ? { ...s, ...shift, updatedAt: new Date().toISOString() } : s);
     return;
   }
   try {
     const docRef = doc(db, SHIFTS_COLLECTION, id);
-    await updateDoc(docRef, shift);
+    const updateData = {
+      ...shift,
+      updatedAt: new Date().toISOString()
+    };
+    console.log("Final update payload:", updateData);
+    await updateDoc(docRef, updateData);
   } catch (error: any) {
+    console.error("Error in updateShift:", error);
     if (error.code === 'permission-denied') {
-      console.warn("Permission denied updating shift. This is likely due to Firestore security rules.");
-      return;
+      handleFirestoreError(error, OperationType.UPDATE, `${SHIFTS_COLLECTION}/${id}`);
     }
     throw error;
   }
@@ -478,14 +536,23 @@ export const claimShift = async (shiftId: string, userId: string): Promise<void>
     return;
   }
   try {
-    const docRef = doc(db, SHIFTS_COLLECTION, shiftId);
+    const shiftRef = doc(db, SHIFTS_COLLECTION, shiftId);
+    const userRef = doc(db, USERS_COLLECTION, userId);
     
     await runTransaction(db, async (transaction) => {
-      const docSnap = await transaction.get(docRef);
-      if (!docSnap.exists()) throw new Error("Shift not found");
+      const [shiftSnap, userSnap] = await Promise.all([
+        transaction.get(shiftRef),
+        transaction.get(userRef)
+      ]);
+
+      if (!shiftSnap.exists()) throw new Error("Shift not found");
+      if (!userSnap.exists()) throw new Error("User profile not found");
       
-      const shiftData = docSnap.data() as VolunteerShift;
+      const shiftData = shiftSnap.data() as VolunteerShift;
+      const userData = userSnap.data() as User;
+
       const currentClaimedBy = shiftData.claimedBy || [];
+      const userShifts = userData.shifts || [];
       
       if (currentClaimedBy.includes(userId)) {
         throw new Error("You have already claimed this shift");
@@ -495,10 +562,16 @@ export const claimShift = async (shiftId: string, userId: string): Promise<void>
         throw new Error("No slots available for this shift");
       }
       
-      transaction.update(docRef, {
+      // Update shift document
+      transaction.update(shiftRef, {
         claimedBy: [...currentClaimedBy, userId],
         slots: shiftData.slots - 1,
         updatedAt: new Date().toISOString()
+      });
+
+      // Update user document
+      transaction.update(userRef, {
+        shifts: [...userShifts, shiftId]
       });
     });
   } catch (error: any) {

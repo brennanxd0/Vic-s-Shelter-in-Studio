@@ -1,29 +1,31 @@
 import admin from 'firebase-admin';
+import firebaseConfigData from '../firebase-applet-config.json';
 
 let adminApp: admin.app.App | null = null;
 
 export function getFirebaseAdmin() {
   if (!adminApp) {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigData.projectId;
     
     if (serviceAccount) {
       try {
         const cert = JSON.parse(serviceAccount);
         adminApp = admin.initializeApp({
           credential: admin.credential.cert(cert),
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID
+          projectId: projectId
         });
       } catch (error) {
         console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", error);
         // Fallback to application default credentials if available
         adminApp = admin.initializeApp({
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID
+          projectId: projectId
         });
       }
     } else {
       // Fallback to application default credentials
       adminApp = admin.initializeApp({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID
+        projectId: projectId
       });
     }
   }
@@ -31,4 +33,4 @@ export function getFirebaseAdmin() {
 }
 
 export const adminAuth = () => getFirebaseAdmin().auth();
-export const adminDb = () => getFirebaseAdmin().firestore();
+export const adminDb = () => getFirebaseAdmin().firestore(firebaseConfigData.firestoreDatabaseId);
