@@ -1,16 +1,104 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { adminAuth, adminDb } from "./lib/firebase-admin.ts";
+import Stripe from "stripe";
+import path from "path";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
+
+  // Stripe Webhook needs raw body - MUST be before express.json()
+  app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!sig || !webhookSecret) {
+      console.error("Missing stripe-signature or STRIPE_WEBHOOK_SECRET");
+      return res.status(400).send("Webhook Error: Missing signature or secret");
+    }
+
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err: any) {
+      console.error(`Webhook Error: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      
+      // Record the donation in Firestore
+      try {
+        await adminDb().collection("donations").add({
+          stripeSessionId: session.id,
+          amount: session.amount_total ? session.amount_total / 100 : 0,
+          currency: session.currency,
+          customerEmail: session.customer_details?.email,
+          customerName: session.customer_details?.name,
+          status: "completed",
+          createdAt: new Date().toISOString(),
+          metadata: session.metadata
+        });
+        console.log(`Donation recorded for session ${session.id}`);
+      } catch (error) {
+        console.error("Error recording donation:", error);
+      }
+    }
+
+    res.json({ received: true });
+  });
 
   app.use(express.json());
 
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Stripe Checkout Route
+  app.post("/api/create-checkout-session", async (req, res) => {
+    const { amount, currency = "usd", successUrl, cancelUrl, donorName, donorEmail } = req.body;
+
+    if (!amount || isNaN(amount)) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    try {
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency,
+              product_data: {
+                name: "Donation to Vic's Animal Shelter",
+                description: "Thank you for supporting our animals!",
+              },
+              unit_amount: Math.round(amount * 100), // Stripe expects cents
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: successUrl || `${req.headers.origin}/donate?success=true`,
+        cancel_url: cancelUrl || `${req.headers.origin}/donate?canceled=true`,
+        customer_email: donorEmail,
+        metadata: {
+          donorName: donorName || "Anonymous",
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Example Admin SDK usage: Verify token and get user role

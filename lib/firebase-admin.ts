@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfigData from '../firebase-applet-config.json';
 
 let adminApp: admin.app.App | null = null;
@@ -33,4 +34,4 @@ export function getFirebaseAdmin() {
 }
 
 export const adminAuth = () => getFirebaseAdmin().auth();
-export const adminDb = () => getFirebaseAdmin().firestore(firebaseConfigData.firestoreDatabaseId);
+export const adminDb = () => getFirestore(getFirebaseAdmin(), firebaseConfigData.firestoreDatabaseId);

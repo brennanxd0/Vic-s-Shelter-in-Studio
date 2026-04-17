@@ -1,9 +1,63 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const Donate: React.FC = () => {
   const [amount, setAmount] = useState<number | string>(50);
-  const [isRecurring, setIsRecurring] = useState(true);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('success')) {
+      toast.success('Thank you for your generous donation!', {
+        description: 'Your contribution helps us save more animals.',
+        duration: 5000,
+      });
+    }
+    if (searchParams.get('canceled')) {
+      toast.error('Donation canceled.', {
+        description: 'If you encountered an issue, please let us know.',
+      });
+    }
+  }, [searchParams]);
+
+  const handleDonate = async () => {
+    const donationAmount = Number(amount);
+    if (!donationAmount || donationAmount <= 0) {
+      toast.error('Please enter a valid donation amount.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: donationAmount,
+          currency: 'usd',
+          // Note: isRecurring logic would require Stripe Prices/Products for subscriptions
+          // For now, we'll implement one-time payments as requested.
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+    } catch (error: any) {
+      console.error('Donation error:', error);
+      toast.error('Something went wrong. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col lg:flex-row items-center gap-16">
@@ -70,8 +124,12 @@ const Donate: React.FC = () => {
             </p>
           </div>
 
-          <button className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black text-xl shadow-xl shadow-purple-100 hover:bg-purple-700 hover:scale-[1.02] active:scale-95 transition-all mb-8">
-            Donate Now
+          <button 
+            onClick={handleDonate}
+            disabled={isLoading}
+            className="w-full py-5 bg-purple-600 text-white rounded-3xl font-black text-xl shadow-xl shadow-purple-100 hover:bg-purple-700 hover:scale-[1.02] active:scale-95 transition-all mb-8 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Processing...' : 'Donate Now'}
           </button>
           
           <div className="flex items-center justify-center gap-8 opacity-20 grayscale hover:opacity-40 transition-opacity">
