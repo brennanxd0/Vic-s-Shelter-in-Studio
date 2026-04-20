@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import firebaseConfigData from '../firebase-applet-config.json';
@@ -25,7 +25,11 @@ if (!isFirebaseConfigured) {
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 
 // Initialize services
-export const db = app ? getFirestore(app, (firebaseConfigData as any).firestoreDatabaseId) : null as any;
+// Use initializeFirestore with experimentalForceLongPolling for better stability in iframe environments
+export const db = app ? initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, (firebaseConfigData as any).firestoreDatabaseId) : null as any;
+
 export const auth = app ? getAuth(app) : null as any;
 export const storage = app ? getStorage(app) : null as any;
 

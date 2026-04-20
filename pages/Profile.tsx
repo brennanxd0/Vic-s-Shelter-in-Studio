@@ -196,12 +196,6 @@ const Profile: React.FC<ProfileProps> = ({ user, profile }) => {
 
                 <div className="pt-4 border-t border-slate-50 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Role</span>
-                    <span className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
-                      {profile?.role || 'basicUser'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Member Since</span>
                     <span className="text-xs font-bold text-slate-700">
                       {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Recently'}

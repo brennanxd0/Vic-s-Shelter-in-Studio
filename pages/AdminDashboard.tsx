@@ -19,8 +19,10 @@ import {
 } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { toast } from 'sonner';
-import { Users, Calendar, Package, FileText, RefreshCw, Plus, Edit2, Trash2, Check, X, Eye, Heart, History, RotateCcw, Search, Filter } from 'lucide-react';
+import { Users, Calendar, Package, FileText, RefreshCw, Plus, Edit2, Trash2, Check, X, Eye, Heart, History, RotateCcw, Search, Filter, Download } from 'lucide-react';
 import { motion } from 'motion/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AdminDashboardProps {
   animals: Animal[];
@@ -393,6 +395,133 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     });
   };
 
+  const generatePDFReport = async () => {
+    try {
+      const doc = new jsPDF() as any;
+      const today = new Date();
+      const last30Days = new Date();
+      last30Days.setDate(today.getDate() - 30);
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(126, 34, 206); // bg-purple-700 hex equivalentish
+      doc.text("Vic's Animal Shelter - Monthly Report", 20, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${today.toLocaleDateString()} ${today.toLocaleTimeString()}`, 20, 30);
+      doc.text(`Reporting Period: ${last30Days.toLocaleDateString()} to ${today.toLocaleDateString()}`, 20, 36);
+
+      // 1. Inventory Information
+      doc.setFontSize(16);
+      doc.setTextColor(0);
+      doc.text("1. Animal Inventory", 20, 50);
+      
+      const [inventoryData, combinedApps, shiftData] = await (async () => {
+        const inv = animals.map(a => [
+          a.name,
+          a.type,
+          a.breed,
+          a.gender,
+          a.status || 'Available'
+        ]);
+
+        const filterLast30Days = (submittedAt: string) => {
+          const date = new Date(submittedAt);
+          return date >= last30Days;
+        };
+
+        const combined = [
+          ...applications.filter(a => filterLast30Days(a.submittedAt)).map(a => [
+            a.applicantName, 'Adoption', a.status, new Date(a.submittedAt).toLocaleDateString()
+          ]),
+          ...fosterApps.filter(a => filterLast30Days(a.submittedAt)).map(a => [
+            a.applicantName, 'Foster', a.status, new Date(a.submittedAt).toLocaleDateString()
+          ]),
+          ...volunteerApps.filter(a => filterLast30Days(a.submittedAt)).map(a => [
+            a.applicantName, 'Volunteer', a.status, new Date(a.submittedAt).toLocaleDateString()
+          ])
+        ];
+
+        const shiftsList = shifts.map(s => {
+          const claimedByCount = s.claimedBy ? s.claimedBy.length : 0;
+          const volunteerNames = s.claimedBy ? 
+            s.claimedBy.map(uid => users.find(u => u.id === uid)?.name || 'Unknown').join(', ') : 
+            'None';
+          
+          return [
+            s.title,
+            s.date,
+            s.time,
+            `${claimedByCount}/${s.slots}`,
+            volunteerNames
+          ];
+        });
+
+        return [inv, combined, shiftsList];
+      })();
+
+      autoTable(doc, {
+        startY: 55,
+        head: [['Name', 'Type', 'Breed', 'Gender', 'Status']],
+        body: inventoryData,
+        headStyles: { fillColor: [126, 34, 206] },
+        alternateRowStyles: { fillColor: [249, 245, 255] }
+      });
+
+      // 2. Applications (Adoption, Foster, Volunteer) - Last 30 Days
+      const nextStartY = (doc as any).lastAutoTable.finalY + 15;
+      doc.setFontSize(16);
+      doc.text("2. Applications (Last 30 Days)", 20, nextStartY);
+
+      autoTable(doc, {
+        startY: nextStartY + 5,
+        head: [['Applicant', 'Type', 'Status', 'Date Submitted']],
+        body: combinedApps.length > 0 ? combinedApps : [['No applications in this period', '-', '-', '-']],
+        headStyles: { fillColor: [79, 70, 229] }, // bg-indigo-600
+        alternateRowStyles: { fillColor: [245, 247, 255] }
+      });
+
+      // 3. Shifts & Volunteers
+      const shiftsStartY = (doc as any).lastAutoTable.finalY + 15;
+      doc.setFontSize(16);
+      doc.text("3. Shifts & Volunteers", 20, shiftsStartY);
+
+      autoTable(doc, {
+        startY: shiftsStartY + 5,
+        head: [['Shift', 'Date', 'Time', 'Sign-ups', 'Volunteers']],
+        body: shiftData.length > 0 ? shiftData : [['No shifts scheduled', '-', '-', '-', '-']],
+        headStyles: { fillColor: [5, 150, 105] }, // bg-emerald-600
+        alternateRowStyles: { fillColor: [240, 253, 244] }
+      });
+
+      // 4. Donations (Blank Section)
+      const donationsStartY = (doc as any).lastAutoTable.finalY + 15;
+      doc.setFontSize(16);
+      doc.text("4. Donations", 20, donationsStartY);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text("(Section intentionally left blank for manual auditing)", 20, donationsStartY + 8);
+
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+        doc.text("Confidential Shelter Record - Vic's Animal Shelter", 20, doc.internal.pageSize.height - 10);
+      }
+
+      doc.save(`shelter_report_${today.toISOString().split('T')[0]}.pdf`);
+      toast.success("Report generated and downloaded successfully.");
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Failed to generate PDF report.");
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-10 flex justify-between items-start">
@@ -400,13 +529,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
           <h1 className="text-3xl font-black text-slate-900 mb-2">Vic's Control Center</h1>
           <p className="text-slate-500 font-medium">Manage your shelter community, animal inventory, and adoptions.</p>
         </div>
-        <button 
-          onClick={handleSyncData}
-          className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all uppercase tracking-widest flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Sync Mock Data
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={generatePDFReport}
+            className="px-4 py-2 bg-purple-600 text-white text-xs font-black rounded-xl hover:bg-purple-700 transition-all uppercase tracking-widest flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Generate Report
+          </button>
+          <button 
+            onClick={handleSyncData}
+            className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-all uppercase tracking-widest flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Sync Mock Data
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
