@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Animal, AnimalType, FosterApplication } from '../types.ts';
+import { isAppropriateAnimal } from '../lib/safety';
 import { submitFosterApplication } from '../services/firebaseService';
 import { toast } from 'sonner';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -42,9 +43,11 @@ const Foster: React.FC<FosterProps> = ({ animals, user }) => {
     }
   }, [user]);
 
-  const filteredAnimals = filter === 'All' 
-    ? animals.filter(a => !a.status || a.status === 'available')
-    : animals.filter(a => a.type === filter && (!a.status || a.status === 'available'));
+  const filteredAnimals = animals.filter(a => {
+    const isAvailable = !a.status || a.status === 'available';
+    const matchesFilter = filter === 'All' || a.type === filter;
+    return isAvailable && matchesFilter && isAppropriateAnimal(a);
+  });
 
   const handlePreferenceChange = (pref: string) => {
     setAppFormData(prev => ({

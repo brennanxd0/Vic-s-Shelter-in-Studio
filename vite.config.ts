@@ -20,18 +20,19 @@ export default defineConfig(({ mode }) => {
         tailwindcss(),
         {
           name: 'disable-vite-client',
+          enforce: 'pre',
           resolveId(id) {
-            if (id === '/@vite/client') return id;
+            if (id === '/@vite/client' || id.includes('@vite/client')) return '\0vite-client-mock';
           },
           load(id) {
-            if (id === '/@vite/client') return 'export default {}';
+            if (id === '\0vite-client-mock') return 'export const injectQuery = () => {}; export const createHotContext = () => ({ accept: () => {}, dispose: () => {}, prune: () => {}, invalidate: () => {}, data: {} }); export default {};';
           }
         }
       ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'import.meta.hot': 'false',
+        'import.meta.hot': 'undefined',
       },
       resolve: {
         alias: {

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Animal, AnimalType, AdoptionApplication, FosterApplication, VolunteerApplication, VolunteerShift } from '../types';
+import { isAppropriateAnimal } from '../lib/safety';
 import { 
   updateApplicationStatus, 
   addAnimal, 
@@ -224,14 +225,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
     try {
       if (editingAnimalId) {
         const dogImages = [
+          'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=800',
           'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&q=80&w=800'
         ];
         const catImages = [
           'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1573865668131-974279df4a94?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1574158622682-e40e69881006?auto=format&fit=crop&q=80&w=800'
         ];
         
         const currentAnimal = animals.find(a => a.id === editingAnimalId);
@@ -247,19 +248,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
           ...formData as Animal,
           image: newImage || ''
         };
+
+        if (!isAppropriateAnimal({ ...updatedData, id: editingAnimalId, tags: updatedData.tags || [] })) {
+          toast.error("The profile content (name, description, or image) appears to contain inappropriate keywords. Please focus on living, happy animals.");
+          return;
+        }
+        
         await updateAnimal(editingAnimalId, updatedData);
         setAnimals(prev => prev.map(a => a.id === editingAnimalId ? { ...a, ...updatedData } : a));
         toast.success(`${updatedData.name}'s profile updated successfully.`);
       } else {
         const dogImages = [
+          'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=800',
           'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&q=80&w=800'
         ];
         const catImages = [
           'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1573865668131-974279df4a94?auto=format&fit=crop&q=80&w=800',
-          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800'
+          'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800',
+          'https://images.unsplash.com/photo-1574158622682-e40e69881006?auto=format&fit=crop&q=80&w=800'
         ];
 
         const animalData: Omit<Animal, 'id'> = {
@@ -269,6 +276,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ animals, setAnimals, ap
             : catImages[Math.floor(Math.random() * catImages.length)],
           tags: ['New Arrival']
         };
+
+        if (!isAppropriateAnimal({ ...animalData, id: 'temp' } as Animal)) {
+          toast.error("The profile content (name, description, or image) appears to contain inappropriate keywords. Please focus on living, happy animals.");
+          return;
+        }
+        
         const newId = await addAnimal(animalData);
         setAnimals(prev => [{ ...animalData, id: newId }, ...prev]);
         toast.success(`${animalData.name} added to inventory successfully.`);

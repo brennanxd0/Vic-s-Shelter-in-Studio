@@ -118,8 +118,8 @@ const Home: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { name: 'Puppies', url: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=800' },
-            { name: 'Kittens', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&q=80&w=800' },
-            { name: 'Adult Dogs', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=800' },
+            { name: 'Kittens', url: 'https://images.unsplash.com/photo-1513245535761-06642199ed15?auto=format&fit=crop&q=80&w=800' },
+            { name: 'Adult Dogs', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=800' },
             { name: 'Adult Cats', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800' }
           ].map((cat) => (
             <Link key={cat.name} to="/adopt" className="group relative h-64 rounded-3xl overflow-hidden shadow-md">
@@ -152,12 +152,12 @@ const Home: React.FC = () => {
           </div>
           <div className="md:w-1/2 flex gap-4">
             <div className="flex-1 space-y-4">
-               <img src="https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Cat care" referrerPolicy="no-referrer" />
-               <img src="https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
+               <img src="https://images.unsplash.com/photo-1548247416-ec66f4900b2e?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Cat care" referrerPolicy="no-referrer" />
+               <img src="https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
             </div>
             <div className="flex-1 space-y-4 pt-8">
                <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800" className="w-full h-40 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
-               <img src="https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
+               <img src="https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&q=80&w=800" className="w-full h-64 object-cover rounded-2xl shadow-lg shadow-purple-50" alt="Pet care" referrerPolicy="no-referrer" />
             </div>
           </div>
         </div>
